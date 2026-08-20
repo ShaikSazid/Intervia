@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id       String    @id @default(cuid())
+  email    String    @unique
+  username String?
+  password String
+  sessions session[]
+  resumes  Resume[]
+}
+
+model session {
+  id           String   @id @default(cuid())
+  refreshToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Resume {
+  id                String             @id @default(cuid())
+  fileName          String
+  fileUrl           String
+  mimeType          String
+  fileSize          Int
+  extractedText     String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeChunks      ResumeChunk[]
+  candidateProfile  CandidateProfile?
+  interviewSessions InterviewSession[]
+}
+
+model ResumeChunk {
+  id             String                @id @default(cuid())
+  content        String
+  chunkIndex     Int
+  tokenCount     Int
+  embeddingModel String
+  embedding      Unsupported("vector")
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  resumeId       String
+  resume         Resume                @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+}
+
+model CandidateProfile {
+  id                String             @id @default(cuid())
+  resumeId          String             @unique
+  candidateAnalysis Json
+  llmModel          String
+  version           Int                @default(1)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  resume            Resume             @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  interviewSessions InterviewSession[]
+
+  @@map("candidate_profiles")
+}
+
+enum InterviewSessionStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ConversationTurnStatus {
+  PENDING
+  ANSWERED
+  EVALUATED
+}
+
+model InterviewSession {
+  id String @id @default(cuid())
+
+  resumeId String
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  candidateProfileId String
+  candidateProfile   CandidateProfile @relation(fields: [candidateProfileId], references: [id], onDelete: Cascade)
+
+  interviewConfiguration Json
+  interviewPlan          Json
+  sessionProgress        Json
+
+  status InterviewSessionStatus
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  conversationTurns ConversationTurn[]
+
+  @@index([resumeId])
+  @@index([candidateProfileId])
+  @@index([status])
+}
+
+model ConversationTurn {
+  id                  String                 @id @default(cuid())
+  interviewSessionId  String
+  interviewSession    InterviewSession       @relation(fields: [interviewSessionId], references: [id], onDelete: Cascade)
+  sequenceNumber      Int
+  question            String
+  answer              String?
+  evaluation          Json?
+  investigationIntent Json?
+  status              ConversationTurnStatus
+  startedAt           DateTime?
+  answeredAt          DateTime?
+  evaluatedAt         DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  @@unique([interviewSessionId, sequenceNumber])
+  @@index([interviewSessionId])
+  @@index([status])
+}

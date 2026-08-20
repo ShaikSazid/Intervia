@@ -1,0 +1,6 @@
+export enum ClaimVerificationStatus {
+    UNKNOWN = "UNKNOWN",
+    PARTIALLY_VERIFIED = "PARTIALLY_VERIFIED",
+    VERIFIED = "VERIFIED",
+    QUESTIONABLE = "QUESTIONABLE",
+}
