@@ -1,228 +1,228 @@
-import { createInterview } from "../modules/interview/interview.service.js";
+// import { createInterview } from "../modules/interview/interview.service.js";
 
-import {
-    startInterview,
-    submitAnswer,
-} from "../modules/interview-engine/interview-engine.service.js";
+// import {
+//     startInterview,
+//     submitAnswer,
+// } from "../modules/interview-engine/interview-engine.service.js";
 
-import {
-    InterviewType,
-} from "../modules/interview/interview.enums.js";
+// import {
+//     InterviewType,
+// } from "../modules/interview/interview.enums.js";
 
-import readline from "node:readline/promises";
+// import readline from "node:readline/promises";
 
-import {
-    stdin as input,
-    stdout as output,
-} from "node:process";
+// import {
+//     stdin as input,
+//     stdout as output,
+// } from "node:process";
 
 
-const rl =
-    readline.createInterface({
-        input,
-        output,
-    });
+// const rl =
+//     readline.createInterface({
+//         input,
+//         output,
+//     });
 
 
-const RESUME_ID =
-    "cmt13ftc00001r2t50ohljuwr";
+// const RESUME_ID =
+//     "cmt13ftc00001r2t50ohljuwr";
 
-const TARGET_ROLE =
-    "Backend Developer";
+// const TARGET_ROLE =
+//     "Backend Developer";
 
-const DURATION_MINUTES =
-    30;
+// const DURATION_MINUTES =
+//     30;
 
-const LANGUAGE =
-    "English";
+// const LANGUAGE =
+//     "English";
 
 
-const main = async () => {
+// const main = async () => {
 
-    try {
+//     try {
 
-        console.log(
-            "\n========================================"
-        );
+//         console.log(
+//             "\n========================================"
+//         );
 
-        console.log(
-            "           AI INTERVIEW"
-        );
+//         console.log(
+//             "           AI INTERVIEW"
+//         );
 
-        console.log(
-            "========================================\n"
-        );
+//         console.log(
+//             "========================================\n"
+//         );
 
-        console.log(
-            "Creating interview session...\n"
-        );
+//         console.log(
+//             "Creating interview session...\n"
+//         );
 
 
-        const interview =
-            await createInterview({
+//         const interview =
+//             await createInterview({
 
-                resumeId:
-                    RESUME_ID,
+//                 resumeId:
+//                     RESUME_ID,
 
-                targetRole:
-                    TARGET_ROLE,
+//                 targetRole:
+//                     TARGET_ROLE,
 
-                interviewType:
-                    InterviewType.TECHNICAL,
+//                 interviewType:
+//                     InterviewType.TECHNICAL,
 
-                durationMinutes:
-                    DURATION_MINUTES,
+//                 durationMinutes:
+//                     DURATION_MINUTES,
 
-                language:
-                    LANGUAGE,
-            });
+//                 language:
+//                     LANGUAGE,
+//             });
 
 
-        console.log(
-            `Session created: ${interview.id}\n`
-        );
+//         console.log(
+//             `Session created: ${interview.id}\n`
+//         );
 
-        console.log(
-            "Starting interview...\n"
-        );
+//         console.log(
+//             "Starting interview...\n"
+//         );
 
 
-        const startResult =
-            await startInterview(
-                interview.id
-            );
+//         const startResult =
+//             await startInterview(
+//                 interview.id
+//             );
 
-        if (
-            !startResult.question
-        ) {
+//         if (
+//             !startResult.question
+//         ) {
 
-            throw new Error(
-                "Interview did not generate the first question."
-            );
-        }
+//             throw new Error(
+//                 "Interview did not generate the first question."
+//             );
+//         }
 
 
-        console.log(
-            `AI: ${startResult.question.question}\n`
-        );
+//         console.log(
+//             `AI: ${startResult.question.question}\n`
+//         );
 
-        while (true) {
+//         while (true) {
 
-            /*
-             * Candidate answer
-             */
+//             /*
+//              * Candidate answer
+//              */
 
-            const answer =
-                await rl.question(
-                    "You: "
-                );
+//             const answer =
+//                 await rl.question(
+//                     "You: "
+//                 );
 
 
-            /*
-             * Ignore empty answers
-             */
+//             /*
+//              * Ignore empty answers
+//              */
 
-            if (
-                answer.trim().length === 0
-            ) {
+//             if (
+//                 answer.trim().length === 0
+//             ) {
 
-                console.log(
-                    "Please provide an answer.\n"
-                );
+//                 console.log(
+//                     "Please provide an answer.\n"
+//                 );
 
-                continue;
-            }
+//                 continue;
+//             }
 
-            const result =
-                await submitAnswer({
+//             const result =
+//                 await submitAnswer({
 
-                    sessionId:
-                        interview.id,
+//                     sessionId:
+//                         interview.id,
 
-                    answer:
-                        answer.trim(),
-                });
+//                     answer:
+//                         answer.trim(),
+//                 });
 
-            if (
-                result.interviewCompleted
-            ) {
+//             if (
+//                 result.interviewCompleted
+//             ) {
 
-                console.log(
-                    "\n========================================"
-                );
+//                 console.log(
+//                     "\n========================================"
+//                 );
 
-                console.log(
-                    "        INTERVIEW COMPLETED"
-                );
+//                 console.log(
+//                     "        INTERVIEW COMPLETED"
+//                 );
 
-                console.log(
-                    "========================================\n"
-                );
+//                 console.log(
+//                     "========================================\n"
+//                 );
 
-                break;
-            }
+//                 break;
+//             }
 
-            if (
-                !result.nextQuestion
-            ) {
+//             if (
+//                 !result.nextQuestion
+//             ) {
 
-                throw new Error(
-                    "Interview engine did not return the next question."
-                );
-            }
+//                 throw new Error(
+//                     "Interview engine did not return the next question."
+//                 );
+//             }
 
 
-            console.log(
-                `\nAI: ${result.nextQuestion.question}\n`
-            );
-        }
+//             console.log(
+//                 `\nAI: ${result.nextQuestion.question}\n`
+//             );
+//         }
 
 
-    } catch (error) {
+//     } catch (error) {
 
-        console.log(
-            "\n========================================"
-        );
+//         console.log(
+//             "\n========================================"
+//         );
 
-        console.log(
-            "        INTERVIEW FAILED"
-        );
+//         console.log(
+//             "        INTERVIEW FAILED"
+//         );
 
-        console.log(
-            "========================================\n"
-        );
+//         console.log(
+//             "========================================\n"
+//         );
 
 
-        if (
-            error instanceof Error
-        ) {
+//         if (
+//             error instanceof Error
+//         ) {
 
-            console.error(
-                error.message
-            );
+//             console.error(
+//                 error.message
+//             );
 
-            if (error.stack) {
+//             if (error.stack) {
 
-                console.error(
-                    "\nStack trace:\n"
-                );
+//                 console.error(
+//                     "\nStack trace:\n"
+//                 );
 
-                console.error(
-                    error.stack
-                );
-            }
+//                 console.error(
+//                     error.stack
+//                 );
+//             }
 
-        } else {
+//         } else {
 
-            console.error(
-                error
-            );
-        }
+//             console.error(
+//                 error
+//             );
+//         }
 
-    } finally {
+//     } finally {
 
-        rl.close();
-    }
-};
+//         rl.close();
+//     }
+// };
 
-main();
+// main();

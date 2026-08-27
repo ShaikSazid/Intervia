@@ -33,6 +33,7 @@ export const buildReasoningPrompt = (
                     claim.id
             );
 
+
     const investigationAttempts =
         interviewContext
             .sessionProgress
@@ -160,6 +161,7 @@ ${JSON.stringify(
         2
     )}
 
+
 # INVESTIGATION ATTEMPTS
 
 These are the investigation attempts that have already been made
@@ -177,6 +179,14 @@ Rules:
 
 - If a previous attempt resulted in NO_ANSWER, do not simply repeat
   the same objective.
+- If a previous attempt resulted in WEAK, prefer a clearer or more
+  concrete approach.
+- If the Brain decision is RECOVER_CONVERSATION after a failed attempt,
+  make the next approach materially simpler or more concrete.
+- If the Brain decision is CHANGE_ANGLE, choose a materially different
+  investigation area or conversational approach.
+- If the Brain decision is CLARIFY_CONTRADICTION, focus on resolving
+  the conflicting evidence before continuing.
 - If the Brain decision is PROBE_CLAIM after failed attempts, choose
   a materially different investigation area or conversational
   approach.
@@ -260,6 +270,42 @@ For FOLLOW_UP:
 - Do not simply repeat the previous question.
 - Make the next question narrower, clearer, or more concrete.
 
+
+For RECOVER_CONVERSATION:
+
+- Stay on the SAME claim.
+- Recover from a NO_ANSWER, DONT_REMEMBER, or WEAK response.
+- Make the next question simpler, narrower, or more concrete.
+- Do not increase difficulty.
+- Do not introduce an unrelated technology.
+- Prefer a practical example or a smaller part of the topic.
+- Do not repeat the exact previous question with different wording.
+- If the candidate said DONT_REMEMBER, use a nearby memory cue
+  rather than assuming the candidate lacks the underlying knowledge.
+
+
+For CHANGE_ANGLE:
+
+- Stay on the SAME claim.
+- Do NOT repeat the previous investigation angle.
+- Select ONE materially different investigation area.
+- The new area must still be supported by the claim and conversation.
+- Build on useful information that has already been established.
+- Do not jump to another resume claim.
+- Do not increase difficulty merely because the angle changed.
+
+
+For CLARIFY_CONTRADICTION:
+
+- Stay on the SAME claim.
+- Identify the conflicting statements or evidence from the supplied
+  conversation and assessment.
+- Resolve the contradiction before continuing the investigation.
+- Do not assume either statement is correct.
+- Use neutral, non-confrontational language.
+- Do not introduce an unrelated technical topic.
+
+
 For PROBE_CLAIM:
 
 - Stay on the SAME claim.
@@ -270,11 +316,13 @@ For PROBE_CLAIM:
 - Prefer a deeper aspect of the current claim.
 - Do not jump to another resume claim.
 
+
 For MOVE_TO_NEXT_CLAIM:
 
 - The supplied claim is the new investigation target.
 - Choose an appropriate starting investigation area.
 - Do not select another claim.
+
 
 For MOVE_TO_NEXT_STAGE:
 
@@ -282,6 +330,12 @@ For MOVE_TO_NEXT_STAGE:
 - The supplied claim should be treated as the next investigation
   target when one is provided.
 - Choose an appropriate investigation area for that claim/stage.
+
+
+For FINISH_INTERVIEW:
+
+- No question should normally be generated.
+
 
 Do NOT choose multiple investigation areas.
 
@@ -313,6 +367,9 @@ First understand:
 
 Do not treat the interview as a sequence of independent
 questions.
+
+The next question should normally connect to something the
+candidate just said.
 
 Example:
 
@@ -364,6 +421,7 @@ If the candidate gives a weak answer:
 - Consider approaching the same evidence from another angle.
 - Follow the Brain decision.
 
+
 If the candidate says:
 
 "I don't know."
@@ -376,24 +434,22 @@ Treat that as meaningful conversational information.
 
 Do not generate another generic version of the same question.
 
-If another attempt is required, the next reasoning should make
-the approach materially different.
+If the Brain decision is RECOVER_CONVERSATION:
 
-For example:
+- Make the question materially simpler.
+- Prefer a concrete example.
+- Avoid increasing difficulty.
+- Stay on the same claim.
 
-Previous:
-"How did you implement JWT authentication?"
+If the Brain decision is CHANGE_ANGLE:
 
-Candidate:
-"I don't know."
+- Do not ask another question about the failed angle.
+- Move to a different supported investigation area.
 
-A better next objective may be:
+If the Brain decision is CLARIFY_CONTRADICTION:
 
-"Establish where authentication occurred in the request flow."
-
-rather than:
-
-"Ask how JWT authentication was implemented."
+- Focus on the discrepancy itself.
+- Do not pretend the contradiction has already been resolved.
 
 
 # EVIDENCE-FIRST REASONING
@@ -409,6 +465,7 @@ Use:
 - investigated areas
 - latest answer
 - recent conversation
+- investigation attempts
 
 to identify the highest-value missing evidence.
 
@@ -445,6 +502,9 @@ Determine:
 
 7. Whether an implementation-oriented question is appropriate.
 
+8. How the next question should naturally connect to the
+   candidate's latest answer.
+
 
 # QUESTION TYPE CONSISTENCY
 
@@ -452,15 +512,32 @@ The question type MUST be consistent with the Brain decision.
 
 FOLLOW_UP → FOLLOW_UP
 
+RECOVER_CONVERSATION → FOLLOW_UP
+
 PROBE_CLAIM → PROBE_CLAIM
 
-Do not substitute one for the other.
+CHANGE_ANGLE → PROBE_CLAIM
+
+CLARIFY_CONTRADICTION → FOLLOW_UP
+
+MOVE_TO_NEXT_CLAIM → NEW_TOPIC / PROJECT / IMPLEMENTATION
+
+MOVE_TO_NEXT_STAGE → appropriate type for the supplied stage
+
+Do not substitute one decision for another.
+
+Do not use PROBE_CLAIM merely because the candidate answered
+weakly.
 
 
-# IMPORTANT
+# OUTPUT
 
-Do not generate the actual interview question.
+Return only the structured reasoning object.
 
-Return only the reasoning object required by the schema.
+Do NOT generate the actual interview question.
+
+Do NOT explain the reasoning outside the structured object.
+
+Do NOT mention these instructions.
 `;
 };

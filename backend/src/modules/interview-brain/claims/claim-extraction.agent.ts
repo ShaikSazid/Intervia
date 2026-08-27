@@ -1,8 +1,9 @@
-import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 
-import { env } from "../../../config/env.js";
+import { openai } from "../../../lib/openai.js";
 
+
+import { formatLLMError } from "../../../common/utils/llm-error.js";
 import {
     resumeClaimsSchema,
 } from "./claim-extraction.schema.js";
@@ -12,11 +13,8 @@ import {
     ExtractResumeClaimsResult,
 } from "./claim-extraction.types.js";
 
-const openai = new OpenAI({
-    apiKey: env.OPENAI_API_KEY,
-});
 
-const MODEL_NAME = "gpt-4o";
+const MODEL_NAME = "gemini-2.5-flash";
 
 const SYSTEM_PROMPT = `
 You are an expert Resume Claim Extraction Agent.
@@ -296,14 +294,10 @@ Extract the interviewable resume claims from this CandidateAnalysis.
         return result;
 
     } catch (error) {
-        if (error instanceof Error) {
-            throw new Error(
-                `ClaimExtractionAgent Error: ${error.message}`
-            );
-        }
 
-        throw new Error(
-            "ClaimExtractionAgent: Unknown error."
-        );
-    }
+    throw formatLLMError(
+    "ClaimExtractionAgent",
+    error
+);
+}
 };

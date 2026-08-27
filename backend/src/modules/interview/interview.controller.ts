@@ -4,46 +4,180 @@ import {
     NextFunction,
 } from "express";
 
-import * as interviewService
-    from "./interview.service.js";
+import {
+    CreateInterviewDto,
+} from "./interview.dto.js";
 
-import * as interviewEngineService
-    from "../interview-engine/interview-engine.service.js";
+import * as interviewOrchestrator
+    from "./interview.orchestrator.js";
 
 
 interface InterviewSessionParams {
+
     sessionId: string;
 }
 
 
 /*
 |--------------------------------------------------------------------------
-| Create Interview
+| Start Interview Session
 |--------------------------------------------------------------------------
 |
 | POST /api/interviews
 |
 */
 
-export const createInterview = async (
-    req: Request,
+// export const startInterview = async (
+//     req: Request<
+//         Record<string, never>,
+//         unknown,
+//         CreateInterviewDto
+//     >,
+//     res: Response,
+//     next: NextFunction
+// ) => {
+
+//     try {
+
+//         const result =
+//             await interviewOrchestrator
+//                 .startInterviewSession(
+//                     req.body
+//                 );
+
+
+//         res.status(201).json({
+
+//             success: true,
+
+//             data: result,
+//         });
+
+//     } catch (error) {
+
+//         next(error);
+//     }
+// };
+
+export const startInterview = async (
+    req: Request<
+        Record<string, never>,
+        unknown,
+        CreateInterviewDto
+    >,
     res: Response,
     next: NextFunction
 ) => {
 
     try {
 
-        const interview =
-            await interviewService.createInterview(
-                req.body
-            );
+        console.log(
+            "[Interview] Request body:",
+            req.body
+        );
+
+        console.log(
+            "[Interview] resumeId:",
+            req.body?.resumeId
+        );
+
+        const result =
+            await interviewOrchestrator
+                .startInterviewSession(
+                    req.body
+                );
 
         res.status(201).json({
 
             success: true,
 
-            data: interview,
+            data: result,
+        });
 
+    } catch (error) {
+
+        console.error(
+            "[Interview] Start failed:",
+            error
+        );
+
+        next(error);
+    }
+};
+
+
+/*
+|--------------------------------------------------------------------------
+| Submit Interview Turn
+|--------------------------------------------------------------------------
+|
+| POST /api/interviews/:sessionId/turns
+|
+*/
+
+export const submitTurn = async (
+    req: Request<
+        InterviewSessionParams,
+        unknown,
+        {
+    turnId: string;
+
+    answer: string;
+
+    inputMode?:
+        | "TEXT"
+        | "VOICE"
+        | "VIDEO";
+
+    questionId?: string;
+
+    startedAt?: string;
+
+    endedAt?: string;
+
+    transcriptId?: string;
+}
+    >,
+    res: Response,
+    next: NextFunction
+) => {
+
+    try {
+
+        const result =
+    await interviewOrchestrator
+        .submitInterviewTurn({
+
+            sessionId:
+                req.params.sessionId,
+
+            turnId:
+                req.body.turnId,
+
+            answer:
+                req.body.answer,
+
+            inputMode:
+                req.body.inputMode,
+
+            questionId:
+                req.body.questionId,
+
+            startedAt:
+                req.body.startedAt,
+
+            endedAt:
+                req.body.endedAt,
+
+            transcriptId:
+                req.body.transcriptId,
+        });
+
+        res.status(200).json({
+
+            success: true,
+
+            data: result,
         });
 
     } catch (error) {
@@ -55,14 +189,14 @@ export const createInterview = async (
 
 /*
 |--------------------------------------------------------------------------
-| Start Interview
+| Get Interview Session
 |--------------------------------------------------------------------------
 |
-| POST /api/interviews/:sessionId/start
+| GET /api/interviews/:sessionId
 |
 */
 
-export const startInterview = async (
+export const getInterview = async (
     req: Request<InterviewSessionParams>,
     res: Response,
     next: NextFunction
@@ -70,14 +204,10 @@ export const startInterview = async (
 
     try {
 
-        const sessionId =
-            req.params.sessionId;
-
-
-        const result =
-            await interviewEngineService
-                .startInterview(
-                    sessionId
+        const session =
+            await interviewOrchestrator
+                .getInterviewSession(
+                    req.params.sessionId
                 );
 
 
@@ -85,8 +215,7 @@ export const startInterview = async (
 
             success: true,
 
-            data: result,
-
+            data: session,
         });
 
     } catch (error) {
@@ -98,14 +227,14 @@ export const startInterview = async (
 
 /*
 |--------------------------------------------------------------------------
-| Submit Answer
+| End Interview
 |--------------------------------------------------------------------------
 |
-| POST /api/interviews/:sessionId/answer
+| POST /api/interviews/:sessionId/end
 |
 */
 
-export const submitAnswer = async (
+export const endInterview = async (
     req: Request<InterviewSessionParams>,
     res: Response,
     next: NextFunction
@@ -113,42 +242,18 @@ export const submitAnswer = async (
 
     try {
 
-        const sessionId =
-            req.params.sessionId;
-
-
-        const {
-            answer,
-        } = req.body;
-
-
-        if (
-            typeof answer !== "string" ||
-            answer.trim().length === 0
-        ) {
-
-            throw new Error(
-                "Answer is required."
-            );
-        }
-
-
-        const result =
-            await interviewEngineService
-                .submitAnswer({
-
-                    sessionId,
-
-                    answer,
-                });
+        const session =
+            await interviewOrchestrator
+                .endInterviewSession(
+                    req.params.sessionId
+                );
 
 
         res.status(200).json({
 
             success: true,
 
-            data: result,
-
+            data: session,
         });
 
     } catch (error) {

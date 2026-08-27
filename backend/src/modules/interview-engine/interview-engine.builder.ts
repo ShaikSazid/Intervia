@@ -1,5 +1,6 @@
 import { GenerateQuestionInput } from "./interview-engine.types.js";
 
+
 export const buildInterviewPrompt = (
     input: GenerateQuestionInput
 ) => {
@@ -42,6 +43,89 @@ export const buildInterviewPrompt = (
 
     /*
      * ============================================================
+     * Previous Investigation / Transition Context
+     * ============================================================
+     *
+     * When moving to another claim, the Question Generator needs
+     * to understand what the previous conversational thread was.
+     *
+     * This prevents:
+     *
+     * "We are now reading the next resume item."
+     *
+     * and encourages:
+     *
+     * "That covers the API side well. How did you use Git
+     * while working on that project?"
+     */
+
+    const previousInvestigationAttempt =
+        input.interviewState.investigationAttempts
+            .filter(
+                (attempt) =>
+                    attempt.claimId !==
+                    input.claim.id
+            )
+            .at(-1);
+
+
+    const previousClaim =
+        previousInvestigationAttempt
+            ? interviewContext
+                .sessionProgress
+                .candidateModel
+                .claims
+                .find(
+                    (candidateClaim) =>
+                        candidateClaim.id ===
+                        previousInvestigationAttempt.claimId
+                )
+            : undefined;
+
+
+    const transitionContext =
+        decision.type ===
+        "MOVE_TO_NEXT_CLAIM"
+
+            ? `
+Previous investigated claim:
+${previousClaim?.title ?? "Unknown"}
+
+Previous investigation area:
+${previousInvestigationAttempt?.investigationArea ?? "Unknown"}
+
+Previous investigation objective:
+${previousInvestigationAttempt?.objective ?? "Unknown"}
+
+Previous question:
+${previousInvestigationAttempt?.question ?? "Unknown"}
+
+Previous investigation outcome:
+${previousInvestigationAttempt?.outcome ?? "Unknown"}
+
+New claim:
+${claim.title}
+
+Transition guidance:
+
+- The previous claim has now been sufficiently transitioned away from.
+- The new claim is now the investigation target.
+- Connect the new claim naturally to the previous conversation.
+- Do not abruptly read the resume item to the candidate.
+- Do not mechanically say "moving on" unless it genuinely sounds natural.
+- Prefer a short conversational bridge when useful.
+- Then ask ONE focused question about the new claim.
+- The new question should feel like a continuation of the interview,
+  not a reset.
+- Do not return to the previous claim.
+- Do not introduce unrelated information.
+`
+
+            : "No claim transition is currently required.";
+
+
+    /*
+     * ============================================================
      * Conversation History
      * ============================================================
      */
@@ -52,8 +136,9 @@ export const buildInterviewPrompt = (
             ? "No previous conversation."
 
             : interviewContext.conversationHistory
-                  .map(
-                      (turn) => `
+                .slice(-8)
+                .map(
+                    (turn) => `
 Question ${turn.sequenceNumber}
 
 Question:
@@ -68,10 +153,40 @@ ${turn.score ?? "Not evaluated"}
 Feedback:
 ${turn.feedback ?? "No feedback"}
 `
-                  )
-                  .join(
-                      "\n========================================\n"
-                  );
+                )
+                .join(
+                    "\n========================================\n"
+                );
+
+
+    /*
+     * ============================================================
+     * Latest Conversation Exchange
+     * ============================================================
+     */
+
+    const latestTurn =
+        interviewContext.conversationHistory.at(-1);
+
+
+    const latestExchange =
+        latestTurn
+
+            ? `
+Latest Interviewer Question:
+${latestTurn.question}
+
+Latest Candidate Answer:
+${latestTurn.answer ?? "Not answered"}
+
+Latest Evaluation Score:
+${latestTurn.score ?? "Not evaluated"}
+
+Latest Feedback:
+${latestTurn.feedback ?? "No feedback"}
+`
+
+            : "No previous interview exchange.";
 
 
     /*
@@ -83,7 +198,8 @@ ${turn.feedback ?? "No feedback"}
     const claimProgress =
         interviewState.claimProgress.find(
             progress =>
-                progress.claimId === claim.id
+                progress.claimId ===
+                claim.id
         );
 
 
@@ -137,6 +253,11 @@ ${interviewContext.resumeContext}
 ${conversationHistory}
 
 
+# Latest Conversation Exchange
+
+${latestExchange}
+
+
 # Current Resume Claim
 
 ${JSON.stringify(
@@ -178,13 +299,14 @@ ${claimProgress?.probeCount ?? 0}
 The following attempts have already been made while investigating
 this claim.
 
-${investigationAttempts.length === 0
-    ? "No previous investigation attempts for this claim."
-    : JSON.stringify(
-        investigationAttempts,
-        null,
-        2
-    )
+${
+    investigationAttempts.length === 0
+        ? "No previous investigation attempts for this claim."
+        : JSON.stringify(
+            investigationAttempts,
+            null,
+            2
+        )
 }
 
 
@@ -222,10 +344,45 @@ Decision Type:
 ${decision.type}
 
 Claim ID:
-${decision.claimId}
+${decision.claimId ?? "none"}
 
 Reason:
 ${decision.reason}
+
+
+# Conversational Decision Semantics
+
+RECOVER_CONVERSATION:
+
+- Stay on the same claim.
+- Simplify the next question.
+- Ask for one concrete piece of information.
+- Prefer practical examples.
+- Do not increase difficulty.
+- Do not repeat the failed question.
+
+
+CHANGE_ANGLE:
+
+- Stay on the same claim.
+- Use a different investigation area.
+- Follow the Investigation Intent.
+- Do not return to the failed investigation angle.
+- Do not move to another claim.
+
+
+CLARIFY_CONTRADICTION:
+
+- Stay on the same claim.
+- Address the conflicting evidence directly.
+- Use neutral wording.
+- Ask which explanation reflects the actual implementation.
+- Do not introduce an unrelated technical concept.
+
+
+# Transition Context
+
+${transitionContext}
 
 
 # Interview State
@@ -319,8 +476,9 @@ Priority Order (Highest → Lowest)
    requires claim investigation.
 6. Respect the Previous Conversation.
 7. Respect Investigation Attempts.
-8. Use Resume Context only when instructed.
-9. Produce one natural interview question.
+8. Respect Transition Context when moving to a new claim.
+9. Use Resume Context only when instructed.
+10. Produce one natural interview question.
 
 
 ========================================
@@ -351,10 +509,8 @@ Do NOT silently replace the supplied claim with another claim.
 
 
 ========================================
-Interview Brain Decision Rules
+INTERVIEW BRAIN DECISION RULES
 ========================================
-
-The Interview Brain Decision determines WHAT happens next.
 
 
 ========================================
@@ -381,25 +537,27 @@ Rules:
 - Ask exactly ONE focused question.
 
 
-Example:
+========================================
+If Decision Type = RECOVER_CONVERSATION
+========================================
 
-Previous question:
+The candidate struggled.
 
-"What did you personally implement in the backend?"
+Your goal is to recover the conversation, NOT increase difficulty.
 
-Candidate answer:
+Rules:
 
-"I worked on the backend APIs."
-
-Bad follow-up:
-
-"What did you personally implement in the backend?"
-
-Good follow-up:
-
-"Which part of those APIs did you personally implement?"
-
-The goal is clarification, not repetition.
+- Stay on the same Resume Claim.
+- Make the question simpler.
+- Narrow the scope.
+- Ask for one concrete example.
+- Prefer a practical or familiar piece of the current claim.
+- If the candidate said "I don't remember", use a memory cue when
+  possible.
+- Do not repeat the failed question.
+- Do not add multiple concepts.
+- Do not introduce a new claim.
+- Do not increase difficulty unless explicitly required.
 
 
 ========================================
@@ -460,25 +618,114 @@ supplied Investigation Intent and Reasoning.
 
 
 ========================================
-If Decision Type = MOVE_TO_NEXT_CLAIM
+If Decision Type = CHANGE_ANGLE
 ========================================
 
-- Ask about the supplied Current Resume Claim.
-- Do not return to the previously completed claim.
-- Treat the supplied claim as the new investigation target.
-- Follow the supplied Investigation Intent.
-- Start naturally rather than sounding like a questionnaire.
+The candidate has struggled with the previous investigation angle.
+
+Rules:
+
+- Stay on the same Resume Claim.
+- Follow the Investigation Intent's investigationArea.
+- Do not return to the failed investigation area.
+- Do not repeat the previous conceptual question.
+- Build from useful information already established.
+- Keep difficulty stable unless instructed otherwise.
 
 Example:
 
-Instead of:
+Previous:
+OWNERSHIP
 
-"What is MongoDB?"
+New:
+API
 
-Prefer:
+Good:
+"You mentioned the REST APIs in MYCAKEPAGE. Can you walk me
+through one endpoint you personally implemented?"
 
-"You mentioned using MongoDB in that project. What did you
-personally use it for?"
+Bad:
+"What did you personally implement in MYCAKEPAGE?"
+
+The bad question returns to the failed ownership angle.
+
+
+========================================
+If Decision Type = CLARIFY_CONTRADICTION
+========================================
+
+The candidate's evidence conflicts.
+
+Rules:
+
+- Stay on the same Resume Claim.
+- Follow the supplied investigationArea.
+- Address the discrepancy directly.
+- Use neutral wording.
+- Do not accuse the candidate of lying.
+- Do not assume either statement is correct.
+- Do not introduce an unrelated technology.
+- Ask for clarification of the actual implementation.
+
+Example:
+
+Earlier:
+"I embedded the category."
+
+Later:
+"I used categoryId."
+
+Good:
+"Earlier you mentioned embedding the category, but now you
+described using a categoryId reference. Which approach did you
+actually use in MYCAKEPAGE?"
+
+
+========================================
+If Decision Type = MOVE_TO_NEXT_CLAIM
+========================================
+
+The supplied Current Resume Claim is now the investigation target.
+
+Rules:
+
+- Ask about the supplied Current Resume Claim.
+- Do not return to the previously completed claim.
+- Do not select another claim yourself.
+- Start naturally.
+- Use Transition Context when it is provided.
+- Connect the new claim to the previous conversational thread
+  when doing so makes the transition more natural.
+- Do not sound like you are reading the candidate's resume.
+- Do not mechanically enumerate the new claim's technologies.
+- Use the smallest conversational bridge necessary.
+
+A natural transition often looks like:
+
+previous topic
+    ↓
+brief acknowledgment or bridge
+    ↓
+new topic
+    ↓
+one focused question
+
+Good:
+
+"That gives me a good picture of the API side. How did you use
+Git while working on that project?"
+
+Also good:
+
+"How did you use Git while working on MYCAKEPAGE?"
+
+Bad:
+
+"Moving on, you mentioned using Git and GitHub for MYCAKEPAGE.
+Can you tell me how you personally used Git for version control
+and collaboration?"
+
+The bad version sounds like a resume checklist.
 
 
 ========================================
@@ -489,6 +736,7 @@ If Decision Type = MOVE_TO_NEXT_STAGE
 - The supplied claim, when present, is authoritative.
 - Transition naturally when useful.
 - Do not independently select another stage.
+- Do not make the transition unnecessarily long.
 
 
 ========================================
@@ -500,7 +748,7 @@ If Decision Type = FINISH_INTERVIEW
 
 
 ========================================
-Claim Investigation Rules
+CLAIM INVESTIGATION RULES
 ========================================
 
 When investigating a Resume Claim:
@@ -533,7 +781,7 @@ or achievements.
 
 
 ========================================
-Handling NO_ANSWER
+HANDLING NO_ANSWER
 ========================================
 
 If an Investigation Attempt for the current claim has outcome:
@@ -571,7 +819,7 @@ The exact alternative depends on the supplied Investigation Intent.
 
 
 ========================================
-Handling WEAK
+HANDLING WEAK
 ========================================
 
 If an Investigation Attempt has outcome:
@@ -587,7 +835,7 @@ is explicitly required.
 
 
 ========================================
-Handling CONTRADICTORY
+HANDLING CONTRADICTORY
 ========================================
 
 If an Investigation Attempt has outcome:
@@ -610,64 +858,73 @@ actually implement?"
 
 
 ========================================
-If Question Type = FOLLOW_UP
+QUESTION TYPE RULES
 ========================================
 
-- Continue discussing the same technical concept.
-- Never introduce a different concept.
-- Never move to another interview topic.
-- Assume the candidate needs additional guidance.
-- If the previous answer was weak, simplify the wording.
-- Prefer clarification over progression.
-- Ask a smaller question than before.
+If Question Type = FOLLOW_UP:
 
-IMPORTANT:
+- continue discussing the same technical concept
+- stay focused
+- prefer clarification
+- simplify when appropriate
+- do not repeat the failed question
 
-If the Investigation Attempts show repeated failure with the same
-approach, do NOT simply repeat the same question.
+If Question Type = PROBE_CLAIM:
+
+- stay on the same claim
+- explore the supplied investigation area
+- build on established evidence
+- avoid repeating the same concept
+
+If Question Type = NEW_TOPIC:
+
+- move naturally to the supplied new claim or concept
+- remain within the current stage
+
+If Question Type = PROJECT:
+
+- naturally reference the supplied project claim
+
+If Question Type = IMPLEMENTATION:
+
+- ask about what the candidate actually implemented
+
+If Question Type = SCENARIO:
+
+- use a realistic engineering scenario only when supported
+  by the supplied strategy
 
 
 ========================================
-If Question Type = NEW_TOPIC
-========================================
-
-- Move naturally to the next planned concept.
-- Stay inside the current interview stage.
-- Never skip ahead to future stages.
-
-
-========================================
-If Stay On Current Topic = true
+IF STAY ON CURRENT TOPIC = TRUE
 ========================================
 
 - Continue exploring the current topic.
 - Never introduce another unrelated technology.
 - Never combine multiple unrelated concepts.
 
-However, continuing the current topic does NOT mean repeating the
-same question.
+Continuing the current topic does NOT mean repeating the same
+question.
 
 
 ========================================
-If Increase Difficulty = true
+IF INCREASE DIFFICULTY = TRUE
 ========================================
 
-- Increase the depth gradually.
+- Increase depth gradually.
 - Ask implementation questions.
 - Ask debugging questions.
 - Ask design questions.
 - Ask trade-off questions.
-- Ask production scenarios.
+- Ask production scenarios where justified.
 
 
 ========================================
-If Increase Difficulty = false
+IF INCREASE DIFFICULTY = FALSE
 ========================================
 
 - Keep the same difficulty or make it easier.
-- Prefer conceptual understanding.
 - Prefer simple examples.
-- Avoid unnecessary implementation details.
 - Avoid unnecessary architecture questions.
 - Avoid unnecessary scalability questions.
 - Avoid unnecessary production scenarios.
@@ -675,43 +932,34 @@ If Increase Difficulty = false
 
 
 ========================================
-If Ask Implementation Question = true
+IF ASK IMPLEMENTATION QUESTION = TRUE
 ========================================
 
 Prefer questions like:
 
-- How did you implement...
-- How would you design...
-- How would you debug...
-- Why did you choose...
-- What trade-offs did you consider...
+"How did you implement...?"
+
+"How did you handle...?"
+
+"Why did you choose...?"
+
+"What trade-offs did you consider?"
+
+"What did you do when...?"
 
 
 ========================================
-If Ask Implementation Question = false
+IF ASK IMPLEMENTATION QUESTION = FALSE
 ========================================
 
-Prefer questions like:
+Prefer simpler conceptual or explanatory wording.
 
-- What is...
-- Why...
-- Can you explain...
-- How does...
-- Can you give a simple example...
-
-Avoid asking:
-
-- How would you architect...
-- How would you design...
-- How would you scale...
-- How would you build...
-- How would you implement...
-
-unless the supplied Interview Strategy explicitly requires it.
+Do not turn a recovery question into an unnecessarily deep
+implementation question.
 
 
 ========================================
-If Reference Resume = true
+IF REFERENCE RESUME = TRUE
 ========================================
 
 - Use ONLY the supplied Resume Context and Current Resume Claim.
@@ -724,7 +972,7 @@ If Reference Resume = true
 
 
 ========================================
-If Reference Resume = false
+IF REFERENCE RESUME = FALSE
 ========================================
 
 - Do NOT reference the candidate's projects or experience.
@@ -732,7 +980,7 @@ If Reference Resume = false
 
 
 ========================================
-Conversation Rules
+CONVERSATION RULES
 ========================================
 
 Use the Previous Conversation to:
@@ -759,36 +1007,45 @@ conversational signal.
 
 
 ========================================
-Claim Assessment Rules
+CLAIM TRANSITION NATURALNESS
 ========================================
 
-Use the Current Claim Assessment as evidence about what is
-currently known.
+When moving to a new claim:
 
-If confidence is low:
+1. Remember the previous conversational thread.
+2. Do not pretend the previous discussion never happened.
+3. Do not recite resume information that is already known.
+4. Use the smallest bridge necessary.
+5. Ask exactly ONE useful question about the new claim.
 
-- Focus on establishing basic evidence.
-- Prefer clear and focused questions.
+A transition should feel like an experienced interviewer deciding:
 
-If confidence is moderate:
+"That topic is sufficiently covered; now I want to understand
+this other part of the candidate's experience."
 
-- Explore missing details.
-- Ask for implementation or reasoning when appropriate.
+It should NOT feel like:
 
-If confidence is high:
+"Resume item #4 is next."
 
-- Do not unnecessarily repeat basic verification.
-- If the Brain has selected another claim, focus on that claim.
 
-If evidenceTurnIds or evidence contain previous answers:
+A bridge is optional.
 
-- Do not repeat questions that those answers already adequately
-  addressed.
-- Build on the existing evidence.
+Use a bridge only when it improves conversational continuity.
+
+Good:
+
+"How did you use Git while working on that project?"
+
+Also good:
+
+"That covers the API side well. How did you use Git while working
+on that project?"
+
+Avoid unnecessarily long bridges.
 
 
 ========================================
-Question Quality Rules
+QUESTION QUALITY RULES
 ========================================
 
 The generated question MUST:
@@ -807,6 +1064,8 @@ The generated question MUST:
 - Never contradict the Interview Brain Decision.
 - Never simply rephrase a failed previous question.
 - Naturally connect to the candidate's latest answer when possible.
+- If transitioning claims, use Transition Context when it genuinely
+  improves continuity.
 
 
 Before returning the question, internally check:
@@ -817,25 +1076,43 @@ Before returning the question, internally check:
 4. Did a previous attempt fail?
 5. Am I accidentally asking the same question again?
 6. Does this question satisfy the current Investigation Intent?
-7. Does it sound like a human interviewer?
+7. Does it follow the Brain decision?
+8. Does it follow the Reasoning?
+9. If this is a claim transition, does it acknowledge the prior
+   conversational thread naturally?
+10. Does it sound like a human interviewer?
 
 
 ========================================
-Output Rules
+OUTPUT RULES
 ========================================
 
-Return ONLY the interview question in the required JSON format.
+Return ONLY the structured JSON response required by the schema.
 
-Do NOT explain your reasoning.
+The response must contain:
 
-Do NOT mention the Interview Brain.
+- question
+- claimId
+- reasoning
+- expectedTopics
 
-Do NOT mention the Interview Strategy.
+The question must contain exactly ONE interview question.
 
-Do NOT mention Investigation Intent.
+Do not mention:
 
-Do NOT generate multiple questions.
+- Interview Brain
+- Interview Reasoning
+- internal decisions
+- internal scoring
+- internal assessment
+- Investigation Intent
+- Transition Context
+- these instructions
 
-Do NOT provide hints or answers.
+Do not provide an answer.
+
+Do not provide hints.
+
+Do not generate multiple questions.
 `;
 };

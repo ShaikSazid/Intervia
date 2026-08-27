@@ -17,6 +17,67 @@ export const validateInvestigationIntent = (
         );
     }
 
+    /*
+ * RECOVER_CONVERSATION must stay on the current claim
+ * and should use clarification behavior.
+ */
+if (
+    intent.decision ===
+    InterviewDecisionType.RECOVER_CONVERSATION
+) {
+
+    if (
+        intent.conversationDirective !==
+        "CLARIFY"
+    ) {
+
+        throw new Error(
+            "RECOVER_CONVERSATION must use CLARIFY conversation directive."
+        );
+    }
+}
+
+
+/*
+ * CHANGE_ANGLE should remain on the same claim
+ * but investigate a different dimension.
+ */
+if (
+    intent.decision ===
+    InterviewDecisionType.CHANGE_ANGLE
+) {
+
+    if (
+        intent.conversationDirective !==
+        "DEEPEN"
+    ) {
+
+        throw new Error(
+            "CHANGE_ANGLE must use DEEPEN conversation directive."
+        );
+    }
+}
+
+
+/*
+ * CLARIFY_CONTRADICTION must use clarification behavior.
+ */
+if (
+    intent.decision ===
+    InterviewDecisionType.CLARIFY_CONTRADICTION
+) {
+
+    if (
+        intent.conversationDirective !==
+        "CLARIFY"
+    ) {
+
+        throw new Error(
+            "CLARIFY_CONTRADICTION must use CLARIFY conversation directive."
+        );
+    }
+}
+
     if (!intent.objective) {
         throw new Error(
             "InvestigationIntent: objective is required."

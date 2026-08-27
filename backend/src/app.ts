@@ -6,6 +6,9 @@ import { router as userRoute }
 import { router as resumeRoutes }
     from "./modules/resume/resume.routes.js";
 
+import voiceRoutes
+    from "./modules/voice/voice.routes.js";
+
 import retrievalRoutes
     from "./modules/retrieval/retrieval.routes.js";
 
@@ -29,6 +32,12 @@ const app = express();
 |--------------------------------------------------------------------------
 */
 
+const allowedOrigins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+];
+
+
 app.use(
     cors({
 
@@ -37,12 +46,46 @@ app.use(
             "POST",
             "PUT",
             "DELETE",
+            "PATCH",
+            "OPTIONS",
         ],
 
         credentials: true,
 
-        origin:
-            "http://localhost:5173",
+        origin: (
+            origin,
+            callback
+        ) => {
+
+            // Allow requests such as server-to-server requests
+            // where the browser does not send an Origin header.
+            if (!origin) {
+                return callback(
+                    null,
+                    true
+                );
+            }
+
+
+            if (
+                allowedOrigins.includes(
+                    origin
+                )
+            ) {
+
+                return callback(
+                    null,
+                    true
+                );
+            }
+
+
+            return callback(
+                new Error(
+                    `CORS origin not allowed: ${origin}`
+                )
+            );
+        },
     })
 );
 
@@ -74,6 +117,10 @@ app.use(
     resumeRoutes
 );
 
+app.use(
+    "/api/voice",
+    voiceRoutes
+);
 
 app.use(
     "/api/retrieval",

@@ -1,14 +1,10 @@
-import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { env } from "../../config/env.js";
 import { CandidateAnalysisSchema } from "./candidate-profile.schema.js";
 import { CandidateAnalysis } from "./candidate-profile.types.js";
+import { openai } from "../../lib/openai.js";
 
-const openai = new OpenAI({
-    apiKey: env.OPENAI_API_KEY,
-});
 
-const MODEL_NAME = "gpt-4o";
+const MODEL_NAME = "gemini-2.5-flash";
 
 const SYSTEM_PROMPT = `
 You are an expert Enterprise Resume Parsing and Candidate Analysis Agent.
@@ -72,18 +68,60 @@ ${rawText}`,
 
         if (!candidateAnalysis) {
             throw new Error(
-                "CandidateUnderstandingAgent: OpenAI failed to return a structured candidate profile."
+                "CandidateUnderstandingAgent: Gemini failed to return a structured candidate profile."
             );
         }
 
         return candidateAnalysis;
     } catch (error) {
-        if (error instanceof Error) {
-            throw new Error(
-                `CandidateUnderstandingAgent Error: ${error.message}`
-            );
-        }
 
-        throw new Error("CandidateUnderstandingAgent: Unknown error occurred.");
+    console.error(
+        "[CandidateUnderstandingAgent] Gemini request failed:",
+        {
+            model:
+                MODEL_NAME,
+
+            error,
+
+            status:
+                typeof error === "object" &&
+                error !== null &&
+                "status" in error
+                    ? (
+                        error as {
+                            status?: unknown;
+                        }
+                    ).status
+                    : undefined,
+
+            message:
+                error instanceof Error
+                    ? error.message
+                    : String(error),
+
+            name:
+                error instanceof Error
+                    ? error.name
+                    : undefined,
+
+            stack:
+                error instanceof Error
+                    ? error.stack
+                    : undefined,
+        }
+    );
+
+
+    if (error instanceof Error) {
+
+        throw new Error(
+            `CandidateUnderstandingAgent Error: ${error.message}`
+        );
     }
+
+
+    throw new Error(
+        "CandidateUnderstandingAgent: Unknown error occurred."
+    );
+}
 };

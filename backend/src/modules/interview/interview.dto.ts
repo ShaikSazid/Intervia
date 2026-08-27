@@ -1,9 +1,18 @@
-import { InterviewType } from "./interview.enums.js";
+import {
+    InterviewType,
+} from "./interview.enums.js";
+
 
 export interface CreateInterviewDto {
+
     resumeId: string;
+
     targetRole: string;
-    interviewType: InterviewType
+
+    interviewType:
+        InterviewType;
+
     durationMinutes: number;
+
     language: string;
 }

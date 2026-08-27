@@ -129,10 +129,10 @@ import {
 
 
 /*
- |--------------------------------------------------------------------------
- | Helper: Generate Question
- |--------------------------------------------------------------------------
- */
+|--------------------------------------------------------------------------
+| Helper: Generate Question
+|--------------------------------------------------------------------------
+*/
 
 const generateQuestion = async (params: {
     interviewSessionId: string;
@@ -244,10 +244,10 @@ const generateQuestion = async (params: {
 
 
 /*
- |--------------------------------------------------------------------------
- | Start Interview
- |--------------------------------------------------------------------------
- */
+|--------------------------------------------------------------------------
+| Start Interview
+|--------------------------------------------------------------------------
+*/
 
 export const startInterview = async (
     sessionId: string
@@ -330,7 +330,6 @@ export const startInterview = async (
 
 
     let firstStageIndex = 0;
-
 
     let firstStage:
         InterviewStage | undefined;
@@ -483,11 +482,6 @@ export const startInterview = async (
      * ============================================================
      * 8. Initialize Brain State
      * ============================================================
-     *
-     * IMPORTANT:
-     *
-     * The first claim has already been selected above, so the
-     * initial state must point to that claim.
      */
 
     const interviewState:
@@ -541,39 +535,39 @@ export const startInterview = async (
 
         conversationState: {
 
-    mode:
-        "CLAIM_INVESTIGATION",
+            mode:
+                "CLAIM_INVESTIGATION",
 
-    currentThread:
-        null,
+            currentThread:
+                null,
 
-    threadStatus:
-        "OPEN",
+            threadStatus:
+                "OPEN",
 
-    demonstratedEvidence:
-        [],
+            demonstratedEvidence:
+                [],
 
-    missingEvidence:
-        [],
+            missingEvidence:
+                [],
 
-    failedAttempts:
-        0,
+            failedAttempts:
+                0,
 
-    recentQuestionIds:
-        [],
+            recentQuestionIds:
+                [],
 
-    recentQuestionTexts:
-        [],
+            recentQuestionTexts:
+                [],
 
-    recentAnswerTexts:
-        [],
+            recentAnswerTexts:
+                [],
 
-    unresolvedContradictions:
-        [],
+            unresolvedContradictions:
+                [],
 
-    candidateFrustrated:
-        false,
-},
+            candidateFrustrated:
+                false,
+        },
     };
 
 
@@ -657,8 +651,8 @@ export const startInterview = async (
 
     const initialClaimProgress =
         interviewState.claimProgress.find(
-            (progress) =>
-                progress.claimId ===
+            (claimProgress) =>
+                claimProgress.claimId ===
                 firstClaim.id
         );
 
@@ -690,7 +684,7 @@ export const startInterview = async (
      */
 
     const {
-        question,
+        question, conversationTurn
     } = await generateQuestion({
 
         interviewSessionId:
@@ -761,15 +755,17 @@ export const startInterview = async (
             session.id,
 
         question,
+
+        turnId: conversationTurn.id
     };
 };
 
 
 /*
- |--------------------------------------------------------------------------
- | Submit Answer
- |--------------------------------------------------------------------------
- */
+|--------------------------------------------------------------------------
+| Submit Answer
+|--------------------------------------------------------------------------
+*/
 
 export const submitAnswer = async (
     data: SubmitAnswerDto
@@ -916,19 +912,51 @@ export const submitAnswer = async (
      */
 
     const conversationTurn =
-        await conversationTurnService
-            .getPendingConversationTurn(
-                session.id
-            );
-
-
-    if (!conversationTurn) {
-
-        throw new Error(
-            `No pending conversation turn found for interview session ${session.id}.`
+    await conversationTurnService
+        .getConversationTurnById(
+            data.turnId
         );
-    }
 
+
+if (!conversationTurn) {
+
+    throw new NotFoundError(
+        `Conversation turn "${data.turnId}" was not found.`
+    );
+}
+
+
+/*
+ * The turn must belong to this interview session.
+ */
+
+if (
+    conversationTurn.interviewSessionId !==
+    session.id
+) {
+
+    throw new Error(
+        `Conversation turn "${data.turnId}" does not belong to interview session "${session.id}".`
+    );
+}
+
+
+/*
+ * A turn may only be answered once.
+ *
+ * This prevents duplicate voice/text submissions from
+ * processing the same question twice.
+ */
+
+if (
+    conversationTurn.status !==
+    ConversationTurnStatus.PENDING
+) {
+
+    throw new Error(
+        `Conversation turn "${data.turnId}" has already been processed.`
+    );
+}
 
     /*
      * ============================================================
@@ -1004,6 +1032,8 @@ export const submitAnswer = async (
      * ============================================================
      * 10. Create Investigation Attempt
      * ============================================================
+     *
+     * This represents the question that was just answered.
      */
 
     const investigationAttempt =
@@ -1035,6 +1065,8 @@ export const submitAnswer = async (
      * ============================================================
      * 11. Update Conversation State
      * ============================================================
+     *
+     * This describes the answer that was just evaluated.
      */
 
     const updatedConversationState =
@@ -1083,6 +1115,22 @@ export const submitAnswer = async (
                 currentClaim.id
             );
     }
+
+
+    /*
+     * IMPORTANT:
+     *
+     * Record the area of the question that the candidate actually
+     * answered. Do NOT record the next question's investigation
+     * area here.
+     */
+
+    updatedClaimProgress =
+        recordInvestigationArea(
+            updatedClaimProgress,
+            previousInvestigationIntent.claimId,
+            previousInvestigationIntent.investigationArea
+        );
 
 
     /*
@@ -1925,8 +1973,8 @@ export const submitAnswer = async (
 
     const nextClaimProgress =
         updatedClaimProgress.find(
-            (progress) =>
-                progress.claimId ===
+            (claimProgress) =>
+                claimProgress.claimId ===
                 nextClaim.id
         );
 
@@ -1953,29 +2001,35 @@ export const submitAnswer = async (
 
     /*
      * ============================================================
-     * 29. Record Investigation Area
+     * 29. Sync Conversation State With Next Investigation
      * ============================================================
+     *
+     * updateConversationState() describes the answer that was
+     * just evaluated.
+     *
+     * investigationIntent describes what the next question is
+     * intended to investigate.
+     *
+     * Therefore missingEvidence now advances to the next intent.
      */
 
-    const investigationClaimId =
-        decision.claimId ??
-        nextClaim.id;
+    nextInterviewState = {
 
+        ...nextInterviewState,
 
-    updatedClaimProgress =
-        recordInvestigationArea(
+        conversationState: {
 
-            updatedClaimProgress,
+            ...nextInterviewState.conversationState,
 
-            investigationClaimId,
-
-            reasoning.investigationArea
-        );
+            missingEvidence:
+                investigationIntent.requiredEvidence,
+        },
+    };
 
 
     /*
      * ============================================================
-     * 30. Update Final Interview State
+     * 30. Final Interview State
      * ============================================================
      */
 
@@ -2024,7 +2078,7 @@ export const submitAnswer = async (
      */
 
     const {
-        question: nextQuestion,
+        question: nextQuestion, conversationTurn: nextConversationTurn
     } = await generateQuestion({
 
         interviewSessionId:
@@ -2079,6 +2133,8 @@ export const submitAnswer = async (
         decision,
 
         nextQuestion,
+
+        nextTurnId: nextConversationTurn.id,
 
         progress:
             finalProgress,

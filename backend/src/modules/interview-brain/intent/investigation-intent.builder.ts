@@ -33,8 +33,17 @@ const getConversationDirective = (
         case InterviewDecisionType.FOLLOW_UP:
             return "CLARIFY";
 
+        case InterviewDecisionType.RECOVER_CONVERSATION:
+            return "CLARIFY";
+
         case InterviewDecisionType.PROBE_CLAIM:
             return "DEEPEN";
+
+        case InterviewDecisionType.CHANGE_ANGLE:
+            return "DEEPEN";
+
+        case InterviewDecisionType.CLARIFY_CONTRADICTION:
+            return "CLARIFY";
 
         case InterviewDecisionType.MOVE_TO_NEXT_CLAIM:
             return "TRANSITION";

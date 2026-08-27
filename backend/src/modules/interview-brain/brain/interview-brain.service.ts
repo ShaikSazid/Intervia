@@ -39,7 +39,10 @@ const MAX_WEAK_ANSWERS_BEFORE_MOVING_ON = 3;
 const MAX_FAILED_ATTEMPTS_SAME_AREA = 2;
 
 
-export const decideNextAction = (context: InterviewBrainContext): InterviewDecision => {
+export const decideNextAction = (
+    context: InterviewBrainContext
+): InterviewDecision => {
+
     const {
         candidateModel,
         interviewState,
@@ -114,6 +117,7 @@ export const decideNextAction = (context: InterviewBrainContext): InterviewDecis
             };
         }
 
+
         return {
 
             type:
@@ -126,6 +130,7 @@ export const decideNextAction = (context: InterviewBrainContext): InterviewDecis
                 selection.reason,
         };
     }
+
 
     const currentClaim =
         candidateModel.claims.find(
@@ -141,6 +146,7 @@ export const decideNextAction = (context: InterviewBrainContext): InterviewDecis
             `Interview Brain: current claim "${currentClaimId}" was not found in Candidate Model.`
         );
     }
+
 
     const assessment:
         ClaimAssessment | undefined =
@@ -158,6 +164,7 @@ export const decideNextAction = (context: InterviewBrainContext): InterviewDecis
         );
     }
 
+
     const claimProgress =
         interviewState.claimProgress.find(
             (progress) =>
@@ -165,49 +172,33 @@ export const decideNextAction = (context: InterviewBrainContext): InterviewDecis
                 currentClaimId
         );
 
-    const weakAnswerCount = claimProgress?.weakAnswerCount ?? 0;
-    const conversationState = interviewState.conversationState;
-    const conversationIsBlocked = conversationState.threadStatus === "BLOCKED";
-    const candidateIsFrustrated = conversationState.candidateFrustrated;
-    const conversationMode = conversationState.mode;
+
+    const weakAnswerCount =
+        claimProgress?.weakAnswerCount ?? 0;
 
 
-
-if (
-    conversationMode ===
-    "FUNDAMENTALS_CHECK"
-) {
-
-    return {
-        type:
-            InterviewDecisionType.PROBE_CLAIM,
-
-        claimId:
-            currentClaimId,
-
-        reason:
-            `The candidate has struggled to provide resume-specific evidence for "${currentClaim.title}". The interviewer should assess foundational understanding instead of continuing the same resume investigation.`,
-    };
-}
+    const conversationState =
+        interviewState.conversationState;
 
 
-if (
-    conversationMode ===
-    "GUIDED_RECOVERY"
-) {
+    const conversationIsBlocked =
+        conversationState.threadStatus ===
+        "BLOCKED";
 
-    return {
-        type:
-            InterviewDecisionType.FOLLOW_UP,
 
-        claimId:
-            currentClaimId,
+    const candidateIsFrustrated =
+        conversationState.candidateFrustrated;
 
-        reason:
-            `The candidate is struggling with the current investigation. Use a simpler, more concrete question to recover the conversation before moving on.`,
-    };
-}
 
+    const conversationMode =
+        conversationState.mode;
+
+
+    /*
+     * ============================================================
+     * 2. Investigation Attempts
+     * ============================================================
+     */
 
     const investigationAttempts =
         interviewState.investigationAttempts ?? [];
@@ -220,11 +211,14 @@ if (
                 currentClaimId
         );
 
+
     const latestInvestigationArea =
         currentClaimAttempts.at(-1)?.investigationArea;
 
+
     const failedAttemptsInLatestArea =
         latestInvestigationArea
+
             ? currentClaimAttempts.filter(
                 (attempt) =>
                     attempt.investigationArea ===
@@ -238,12 +232,425 @@ if (
                             "WEAK"
                     )
             ).length
+
             : 0;
 
 
     const evidenceCount =
         assessment.evidenceTurnIds.length;
 
+
+    /*
+     * ============================================================
+     * 3. Fundamental / Recovery Mode
+     * ============================================================
+     *
+     * These are state-level fallbacks.
+     *
+     * Answer behavior below has priority when a specific
+     * behavior is available.
+     */
+
+    if (
+        conversationMode ===
+        "FUNDAMENTALS_CHECK"
+    ) {
+
+        return {
+
+            type:
+                InterviewDecisionType.PROBE_CLAIM,
+
+            claimId:
+                currentClaimId,
+
+            reason:
+                `The candidate has struggled to provide resume-specific evidence for "${currentClaim.title}". The interviewer should assess foundational understanding instead of continuing the same resume investigation.`,
+        };
+    }
+
+
+    /*
+     * ============================================================
+     * 4. Conversational Answer Behavior
+     * ============================================================
+     *
+     * Only exceptional behaviors return immediately here.
+     *
+     * PARTIAL and STRONG continue into the normal evidence,
+     * verification, and confidence logic below.
+     */
+
+    switch (
+        latestEvaluation.answerBehavior
+    ) {
+
+        /*
+         * --------------------------------------------------------
+         * NO ANSWER
+         * --------------------------------------------------------
+         */
+
+        case "NO_ANSWER": {
+
+            if (
+                weakAnswerCount >=
+                MAX_WEAK_ANSWERS_BEFORE_MOVING_ON
+            ) {
+
+                const selection =
+                    selectNextClaim({
+
+                        claims:
+                            candidateModel.claims,
+
+                        claimAssessments:
+                            candidateModel.claimAssessments,
+
+                        currentClaimId:
+                            currentClaimId,
+
+                        remainingClaimIds:
+                            interviewState.remainingClaimIds,
+
+                        completedClaimIds:
+                            interviewState.completedClaimIds,
+
+                        pendingFollowUpClaimIds:
+                            interviewState.pendingFollowUpClaimIds,
+
+                        currentStage,
+
+                        targetRole,
+
+                        claimRelationships,
+                    });
+
+
+                if (selection.claim) {
+
+                    return {
+
+                        type:
+                            InterviewDecisionType.MOVE_TO_NEXT_CLAIM,
+
+                        claimId:
+                            selection.claim.id,
+
+                        reason:
+                            `The candidate has repeatedly been unable to provide evidence for "${currentClaim.title}". Move to another high-value claim rather than continuing the same investigation.`,
+                    };
+                }
+
+
+                return {
+
+                    type:
+                        InterviewDecisionType.MOVE_TO_NEXT_STAGE,
+
+                    claimId:
+                        null,
+
+                    reason:
+                        `The candidate has repeatedly been unable to provide evidence for "${currentClaim.title}", and no other eligible claim remains in the current stage.`,
+                };
+            }
+
+
+            return {
+
+                type:
+                    InterviewDecisionType.RECOVER_CONVERSATION,
+
+                claimId:
+                    currentClaimId,
+
+                reason:
+                    `The candidate explicitly indicated that they do not know the answer for "${currentClaim.title}". Recover with a simpler, more concrete question about the same claim.`,
+            };
+        }
+
+
+        /*
+         * --------------------------------------------------------
+         * DON'T REMEMBER
+         * --------------------------------------------------------
+         */
+
+        case "DONT_REMEMBER": {
+
+            return {
+
+                type:
+                    InterviewDecisionType.RECOVER_CONVERSATION,
+
+                claimId:
+                    currentClaimId,
+
+                reason:
+                    `The candidate could not recall the specific implementation detail for "${currentClaim.title}". Use a nearby or simpler question that helps the candidate recall their practical experience without assuming they lack the underlying knowledge.`,
+            };
+        }
+
+
+        /*
+         * --------------------------------------------------------
+         * OFF TOPIC
+         * --------------------------------------------------------
+         */
+
+        case "OFF_TOPIC": {
+
+            return {
+
+                type:
+                    InterviewDecisionType.CHANGE_ANGLE,
+
+                claimId:
+                    currentClaimId,
+
+                reason:
+                    `The candidate's answer was not relevant to the current investigation of "${currentClaim.title}". Change the questioning angle while remaining grounded in the same claim.`,
+            };
+        }
+
+
+        /*
+         * --------------------------------------------------------
+         * FRUSTRATED
+         * --------------------------------------------------------
+         */
+
+        case "FRUSTRATED": {
+
+            const selection =
+                selectNextClaim({
+
+                    claims:
+                        candidateModel.claims,
+
+                    claimAssessments:
+                        candidateModel.claimAssessments,
+
+                    currentClaimId:
+                        currentClaimId,
+
+                    remainingClaimIds:
+                        interviewState.remainingClaimIds,
+
+                    completedClaimIds:
+                        interviewState.completedClaimIds,
+
+                    pendingFollowUpClaimIds:
+                        interviewState.pendingFollowUpClaimIds,
+
+                    currentStage,
+
+                    targetRole,
+
+                    claimRelationships,
+                });
+
+
+            if (selection.claim) {
+
+                return {
+
+                    type:
+                        InterviewDecisionType.MOVE_TO_NEXT_CLAIM,
+
+                    claimId:
+                        selection.claim.id,
+
+                    reason:
+                        `The candidate appears frustrated with the current line of questioning about "${currentClaim.title}". Move to another high-value claim rather than continuing the same conversational pattern.`,
+                };
+            }
+
+
+            return {
+
+                type:
+                    InterviewDecisionType.CHANGE_ANGLE,
+
+                claimId:
+                    currentClaimId,
+
+                reason:
+                    `The candidate appears frustrated and no other eligible claim remains. Change the angle of investigation within "${currentClaim.title}" rather than repeating the same question pattern.`,
+            };
+        }
+
+
+        /*
+         * --------------------------------------------------------
+         * CONTRADICTORY
+         * --------------------------------------------------------
+         */
+
+        case "CONTRADICTORY": {
+
+            return {
+
+                type:
+                    InterviewDecisionType.CLARIFY_CONTRADICTION,
+
+                claimId:
+                    currentClaimId,
+
+                reason:
+                    `The candidate's current answer conflicts with previously established evidence for "${currentClaim.title}". Clarify the contradiction before continuing the investigation.`,
+            };
+        }
+
+
+        /*
+         * --------------------------------------------------------
+         * WEAK
+         * --------------------------------------------------------
+         */
+
+        case "WEAK": {
+
+            if (
+                weakAnswerCount >=
+                MAX_WEAK_ANSWERS_BEFORE_MOVING_ON
+            ) {
+
+                const selection =
+                    selectNextClaim({
+
+                        claims:
+                            candidateModel.claims,
+
+                        claimAssessments:
+                            candidateModel.claimAssessments,
+
+                        currentClaimId:
+                            currentClaimId,
+
+                        remainingClaimIds:
+                            interviewState.remainingClaimIds,
+
+                        completedClaimIds:
+                            interviewState.completedClaimIds,
+
+                        pendingFollowUpClaimIds:
+                            interviewState.pendingFollowUpClaimIds,
+
+                        currentStage,
+
+                        targetRole,
+
+                        claimRelationships,
+                    });
+
+
+                if (selection.claim) {
+
+                    return {
+
+                        type:
+                            InterviewDecisionType.MOVE_TO_NEXT_CLAIM,
+
+                        claimId:
+                            selection.claim.id,
+
+                        reason:
+                            `The candidate has provided insufficient evidence for "${currentClaim.title}" after ${weakAnswerCount} weak answers. Move to another high-value claim rather than repeating the same investigation.`,
+                    };
+                }
+
+
+                return {
+
+                    type:
+                        InterviewDecisionType.MOVE_TO_NEXT_STAGE,
+
+                    claimId:
+                        null,
+
+                    reason:
+                        `The candidate has provided insufficient evidence for "${currentClaim.title}" after ${weakAnswerCount} weak answers, and no other eligible claim remains in the current stage.`,
+                };
+            }
+
+
+            if (
+                failedAttemptsInLatestArea >=
+                MAX_FAILED_ATTEMPTS_SAME_AREA
+            ) {
+
+                return {
+
+                    type:
+                        InterviewDecisionType.CHANGE_ANGLE,
+
+                    claimId:
+                        currentClaimId,
+
+                    reason:
+                        `The candidate has struggled with the "${latestInvestigationArea}" area for "${currentClaim.title}" across ${failedAttemptsInLatestArea} attempts. Change the angle rather than repeating the same conversational approach.`,
+                };
+            }
+
+
+            return {
+
+                type:
+                    InterviewDecisionType.RECOVER_CONVERSATION,
+
+                claimId:
+                    currentClaimId,
+
+                reason:
+                    `The candidate attempted to answer but provided weak evidence for "${currentClaim.title}". Use a simpler and more concrete recovery question.`,
+            };
+        }
+
+
+        /*
+         * --------------------------------------------------------
+         * PARTIAL
+         * --------------------------------------------------------
+         *
+         * Continue into the normal logic below.
+         */
+
+        case "PARTIAL":
+            break;
+
+
+        /*
+         * --------------------------------------------------------
+         * STRONG
+         * --------------------------------------------------------
+         *
+         * Continue into the normal verification logic below.
+         */
+
+        case "STRONG":
+            break;
+
+
+        default: {
+
+            const exhaustiveCheck:
+                never =
+                latestEvaluation.answerBehavior;
+
+            throw new Error(
+                `Interview Brain: unsupported answer behavior "${exhaustiveCheck}".`
+            );
+        }
+    }
+
+
+    /*
+     * ============================================================
+     * 5. Blocked Conversation Fallback
+     * ============================================================
+     */
 
     if (
         conversationIsBlocked ||
@@ -280,6 +687,7 @@ if (
 
 
         if (selection.claim) {
+
             return {
 
                 type:
@@ -314,6 +722,15 @@ if (
                     : `The current conversational thread for "${currentClaim.title}" is blocked and no other eligible claim remains in the current stage.`,
         };
     }
+
+
+    /*
+     * ============================================================
+     * 6. Legacy Weak Answer Protection
+     * ============================================================
+     *
+     * This is retained as a safety net.
+     */
 
     if (
         latestEvaluation.score <
@@ -350,6 +767,7 @@ if (
                 claimRelationships,
             });
 
+
         if (selection.claim) {
 
             return {
@@ -380,6 +798,12 @@ if (
     }
 
 
+    /*
+     * ============================================================
+     * 7. Failed Attempts in Same Investigation Area
+     * ============================================================
+     */
+
     if (
         failedAttemptsInLatestArea >=
         MAX_FAILED_ATTEMPTS_SAME_AREA
@@ -393,17 +817,23 @@ if (
             return {
 
                 type:
-                    InterviewDecisionType.PROBE_CLAIM,
+                    InterviewDecisionType.CHANGE_ANGLE,
 
                 claimId:
                     currentClaimId,
 
                 reason:
-                    `The candidate has struggled with the "${latestInvestigationArea}" investigation area for "${currentClaim.title}" across ${failedAttemptsInLatestArea} attempts. The Brain will probe the same claim from a different angle instead of repeating the same conversational approach.`,
+                    `The candidate has struggled with the "${latestInvestigationArea}" investigation area for "${currentClaim.title}" across ${failedAttemptsInLatestArea} attempts. The Brain will change the investigation angle instead of repeating the same conversational approach.`,
             };
         }
     }
 
+
+    /*
+     * ============================================================
+     * 8. First Weak Answer Fallback
+     * ============================================================
+     */
 
     if (
         latestEvaluation.score <
@@ -414,16 +844,22 @@ if (
         return {
 
             type:
-                InterviewDecisionType.FOLLOW_UP,
+                InterviewDecisionType.RECOVER_CONVERSATION,
 
             claimId:
                 currentClaimId,
 
             reason:
-                `The candidate provided insufficient evidence for "${currentClaim.title}". This is the first weak answer, so one focused follow-up is appropriate.`,
+                `The candidate provided insufficient evidence for "${currentClaim.title}". This is the first weak answer, so one focused recovery question is appropriate.`,
         };
     }
 
+
+    /*
+     * ============================================================
+     * 9. Second Weak Answer Fallback
+     * ============================================================
+     */
 
     if (
         latestEvaluation.score <
@@ -434,7 +870,7 @@ if (
         return {
 
             type:
-                InterviewDecisionType.PROBE_CLAIM,
+                InterviewDecisionType.CHANGE_ANGLE,
 
             claimId:
                 currentClaimId,
@@ -444,6 +880,12 @@ if (
         };
     }
 
+
+    /*
+     * ============================================================
+     * 10. Follow-up Required
+     * ============================================================
+     */
 
     if (
         latestEvaluation.followUpRequired
@@ -462,6 +904,12 @@ if (
         };
     }
 
+
+    /*
+     * ============================================================
+     * 11. Questionable Claim
+     * ============================================================
+     */
 
     if (
         assessment.verificationStatus ===
@@ -487,6 +935,13 @@ if (
             };
         }
     }
+
+
+    /*
+     * ============================================================
+     * 12. Sufficiently Verified
+     * ============================================================
+     */
 
     const sufficientlyVerified =
         assessment.confidence >=
@@ -530,9 +985,8 @@ if (
                 claimRelationships,
             });
 
-        if (
-            selection.claim
-        ) {
+
+        if (selection.claim) {
 
             return {
 
@@ -561,7 +1015,17 @@ if (
         };
     }
 
+
+    /*
+     * ============================================================
+     * 13. Strong Answer but Confidence Is Still Low
+     * ============================================================
+     */
+
     if (
+        latestEvaluation.answerBehavior ===
+            "STRONG" &&
+
         latestEvaluation.score >=
             STRONG_SCORE_THRESHOLD &&
 
@@ -583,9 +1047,15 @@ if (
     }
 
 
+    /*
+     * ============================================================
+     * 14. Confidence-Based Probe
+     * ============================================================
+     */
+
     if (
         assessment.confidence >=
-            CONFIDENCE_TO_PROBE
+        CONFIDENCE_TO_PROBE
     ) {
 
         return {
@@ -604,7 +1074,35 @@ if (
 
     /*
      * ============================================================
-     * 18. Default
+     * 15. Partial Answer
+     * ============================================================
+     *
+     * At this point the candidate answered partially and there
+     * are no stronger transition conditions.
+     */
+
+    if (
+        latestEvaluation.answerBehavior ===
+        "PARTIAL"
+    ) {
+
+        return {
+
+            type:
+                InterviewDecisionType.FOLLOW_UP,
+
+            claimId:
+                currentClaimId,
+
+            reason:
+                `The candidate provided useful but incomplete evidence for "${currentClaim.title}". Ask a focused follow-up that builds directly on the answer.`,
+        };
+    }
+
+
+    /*
+     * ============================================================
+     * 16. Default
      * ============================================================
      */
 

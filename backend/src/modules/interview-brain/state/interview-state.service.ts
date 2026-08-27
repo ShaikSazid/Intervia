@@ -2,7 +2,10 @@ import {
     InterviewDecision,
 } from "../brain/interview-decision.types.js";
 
-import { recordFollowUp, recordProbe } from "../candidate/claim-progress.service.js";
+import {
+    recordFollowUp,
+    recordProbe,
+} from "../candidate/claim-progress.service.js";
 
 import {
     InterviewDecisionType,
@@ -25,6 +28,9 @@ export const applyInterviewDecision = (
         |--------------------------------------------------------------------------
         | FOLLOW_UP
         |--------------------------------------------------------------------------
+        |
+        | Continue investigating the same claim.
+        |
         */
 
         case InterviewDecisionType.FOLLOW_UP: {
@@ -69,38 +75,181 @@ export const applyInterviewDecision = (
 
         /*
         |--------------------------------------------------------------------------
+        | RECOVER_CONVERSATION
+        |--------------------------------------------------------------------------
+        |
+        | The candidate is struggling, so stay on the same claim
+        | but explicitly enter conversational recovery.
+        |
+        */
+
+        case InterviewDecisionType.RECOVER_CONVERSATION: {
+
+            if (!decision.claimId) {
+
+                throw new Error(
+                    "RECOVER_CONVERSATION decision requires a claimId."
+                );
+            }
+
+
+            const updatedClaimProgress =
+                recordFollowUp(
+                    state.claimProgress,
+                    decision.claimId
+                );
+
+
+            return {
+
+                ...state,
+
+                currentClaimId:
+                    decision.claimId,
+
+                pendingFollowUpClaimIds:
+                    state.pendingFollowUpClaimIds.includes(
+                        decision.claimId
+                    )
+                        ? state.pendingFollowUpClaimIds
+                        : [
+                            ...state.pendingFollowUpClaimIds,
+                            decision.claimId,
+                        ],
+
+                claimProgress:
+                    updatedClaimProgress,
+            };
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
         | PROBE_CLAIM
         |--------------------------------------------------------------------------
+        |
+        | Continue investigating the same claim through a deeper
+        | or different technical dimension.
+        |
         */
 
         case InterviewDecisionType.PROBE_CLAIM: {
 
-    if (!decision.claimId) {
+            if (!decision.claimId) {
 
-        throw new Error(
-            "PROBE_CLAIM decision requires a claimId."
-        );
-    }
-
-
-    const updatedClaimProgress =
-        recordProbe(
-            state.claimProgress,
-            decision.claimId
-        );
+                throw new Error(
+                    "PROBE_CLAIM decision requires a claimId."
+                );
+            }
 
 
-    return {
+            const updatedClaimProgress =
+                recordProbe(
+                    state.claimProgress,
+                    decision.claimId
+                );
 
-        ...state,
 
-        currentClaimId:
-            decision.claimId,
+            return {
 
-        claimProgress:
-            updatedClaimProgress,
-    };
-}
+                ...state,
+
+                currentClaimId:
+                    decision.claimId,
+
+                claimProgress:
+                    updatedClaimProgress,
+            };
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CHANGE_ANGLE
+        |--------------------------------------------------------------------------
+        |
+        | Stay on the same claim but deliberately investigate a
+        | different conversational/technical angle.
+        |
+        */
+
+        case InterviewDecisionType.CHANGE_ANGLE: {
+
+            if (!decision.claimId) {
+
+                throw new Error(
+                    "CHANGE_ANGLE decision requires a claimId."
+                );
+            }
+
+
+            const updatedClaimProgress =
+                recordProbe(
+                    state.claimProgress,
+                    decision.claimId
+                );
+
+
+            return {
+
+                ...state,
+
+                currentClaimId:
+                    decision.claimId,
+
+                claimProgress:
+                    updatedClaimProgress,
+            };
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CLARIFY_CONTRADICTION
+        |--------------------------------------------------------------------------
+        |
+        | Remain on the same claim and resolve contradictory evidence.
+        |
+        */
+
+        case InterviewDecisionType.CLARIFY_CONTRADICTION: {
+
+            if (!decision.claimId) {
+
+                throw new Error(
+                    "CLARIFY_CONTRADICTION decision requires a claimId."
+                );
+            }
+
+
+            const updatedClaimProgress =
+                recordFollowUp(
+                    state.claimProgress,
+                    decision.claimId
+                );
+
+
+            return {
+
+                ...state,
+
+                currentClaimId:
+                    decision.claimId,
+
+                pendingFollowUpClaimIds:
+                    state.pendingFollowUpClaimIds.includes(
+                        decision.claimId
+                    )
+                        ? state.pendingFollowUpClaimIds
+                        : [
+                            ...state.pendingFollowUpClaimIds,
+                            decision.claimId,
+                        ],
+
+                claimProgress:
+                    updatedClaimProgress,
+            };
+        }
 
 
         /*
@@ -136,7 +285,7 @@ export const applyInterviewDecision = (
 
 
             /*
-             * The previous claim has now been completed.
+             * Complete the previous claim.
              */
 
             const completedClaimIds =
@@ -186,9 +335,9 @@ export const applyInterviewDecision = (
         | MOVE_TO_NEXT_STAGE
         |--------------------------------------------------------------------------
         |
-        | The actual stage index is maintained by SessionProgress.
+        | SessionProgress owns the stage index.
         |
-        | This decision clears the active claim.
+        | The Brain state therefore clears the active claim.
         |
         */
 
@@ -269,7 +418,7 @@ export const applyInterviewDecision = (
 
         /*
         |--------------------------------------------------------------------------
-        | MOVE_TO_NEXT_STAGE
+        | Exhaustive Check
         |--------------------------------------------------------------------------
         */
 

@@ -1,28 +1,71 @@
 import api from "@/lib/axios";
 
-import type { LoginDto, RegisterDto, LoginResponseDto, RefreshResponseDto, SignupResponseDto, meResponseDto } from "../types/auth.dto";
+import type {
+    LoginDto,
+    LoginResponseDto,
+    RefreshResponseDto,
+    RegisterDto,
+    SignupResponseDto,
+    meResponseDto,
+} from "../types/auth.dto";
 
-const signup = async (data: RegisterDto): Promise<SignupResponseDto> => {
-    const response = await api.post<SignupResponseDto>("/auth/signup", data);
-    return response.data;
-}
-const login = async (data: LoginDto): Promise<LoginResponseDto> => {
-    const result = await api.post<LoginResponseDto>("/auth/login", data);
-    return result.data;
-}
 
-const refresh = async (): Promise<RefreshResponseDto> => {
-    const result = await api.post<RefreshResponseDto>("/auth/refresh");
-    return result.data;
-}
+export const authApi = {
 
-const logout = async (): Promise<void> => {
-    await api.post("/auth/logout");
-}
+    async signup(
+        data: RegisterDto
+    ): Promise<SignupResponseDto> {
 
-const getMe = async (): Promise<meResponseDto> => {
-    const response = await api.get<meResponseDto>("/auth/me");
-    return response.data;
-}
+        const response =
+            await api.post<SignupResponseDto>(
+                "/auth/signup",
+                data
+            );
 
-export const authApi = { signup, login, logout, refresh, getMe };
+        return response.data;
+    },
+
+
+    async login(
+        data: LoginDto
+    ): Promise<LoginResponseDto> {
+
+        const response =
+            await api.post<LoginResponseDto>(
+                "/auth/login",
+                data
+            );
+
+        return response.data;
+    },
+
+
+    async refresh(): Promise<RefreshResponseDto> {
+
+        const response =
+            await api.post<RefreshResponseDto>(
+                "/auth/refresh"
+            );
+
+        return response.data;
+    },
+
+
+    async getMe(): Promise<meResponseDto> {
+
+        const response =
+            await api.get<meResponseDto>(
+                "/auth/me"
+            );
+
+        return response.data;
+    },
+
+
+    async logout(): Promise<void> {
+
+        await api.post(
+            "/auth/logout"
+        );
+    },
+};

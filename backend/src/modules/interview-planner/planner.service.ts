@@ -1,16 +1,16 @@
-import OpenAI from "openai";
+import { openai } from "../../lib/openai.js";
 
 import { zodResponseFormat } from "openai/helpers/zod";
 
-import { env } from "../../config/env.js";
-
 import { buildPlannerPrompt } from "./planner.builder.js";
 
-import { INTERVIEW_PLANNER_PROMPT }
-    from "./planner.prompt.js";
+import {
+    INTERVIEW_PLANNER_PROMPT,
+} from "./planner.prompt.js";
 
-import { interviewPlanSchema }
-    from "./planner.schema.js";
+import {
+    interviewPlanSchema,
+} from "./planner.schema.js";
 
 import {
     GenerateInterviewPlanDto,
@@ -22,13 +22,148 @@ import {
 } from "./claim-relationship.types.js";
 
 
-const openai = new OpenAI({
-    apiKey: env.OPENAI_API_KEY,
-});
+const MODEL_NAME =
+    "gemini-2.5-flash";
 
 
-const MODEL_NAME = "gpt-4o";
+/*
+|--------------------------------------------------------------------------
+| Repair duplicate PRIMARY claims
+|--------------------------------------------------------------------------
+|
+| The planner is an LLM, so occasionally it may produce:
+|
+| Stage 1
+|   project_mycakepage -> PRIMARY
+|
+| Stage 2
+|   project_mycakepage -> PRIMARY
+|
+| A claim can only be the main investigation target once.
+|
+| We preserve the first PRIMARY occurrence and downgrade later
+| occurrences to SUPPORTING rather than rejecting the entire plan.
+|
+*/
 
+const repairDuplicatePrimaryClaims = (
+    interviewPlan: InterviewPlan
+): InterviewPlan => {
+
+    const primaryClaimIds =
+        new Set<string>();
+
+
+    const repairedStages =
+        interviewPlan.stages.map(
+            stage => {
+
+                const repairedClaims =
+                    stage.claims.map(
+                        stageClaim => {
+
+                            if (
+                                stageClaim.role !==
+                                "PRIMARY"
+                            ) {
+                                return stageClaim;
+                            }
+
+
+                            const alreadyPrimary =
+                                primaryClaimIds.has(
+                                    stageClaim.claimId
+                                );
+
+
+                            if (
+                                alreadyPrimary
+                            ) {
+
+                                console.warn(
+                                    "[InterviewPlannerAgent] Duplicate PRIMARY claim detected. Downgrading later occurrence to SUPPORTING:",
+                                    {
+                                        claimId:
+                                            stageClaim.claimId,
+
+                                        stageId:
+                                            stage.id,
+                                    }
+                                );
+
+
+                                return {
+                                    ...stageClaim,
+
+                                    role:
+                                        "SUPPORTING" as const,
+                                };
+                            }
+
+
+                            primaryClaimIds.add(
+                                stageClaim.claimId
+                            );
+
+
+                            return stageClaim;
+                        }
+                    );
+
+
+                return {
+                    ...stage,
+
+                    claims:
+                        repairedClaims,
+                };
+            }
+        );
+
+
+    return {
+        ...interviewPlan,
+
+        stages:
+            repairedStages,
+    };
+};
+
+
+const validateStagePrimaryClaims = (
+    interviewPlan: InterviewPlan
+) => {
+
+    for (
+        const stage
+        of interviewPlan.stages
+    ) {
+
+        const primaryClaims =
+            stage.claims.filter(
+                claim =>
+                    claim.role ===
+                    "PRIMARY"
+            );
+
+
+        if (
+            primaryClaims.length > 1
+        ) {
+
+            throw new Error(
+                `InterviewPlannerAgent: Stage "${stage.id}" contains more than one PRIMARY claim.`
+            );
+        }
+    }
+};
+
+
+/*
+|--------------------------------------------------------------------------
+| Generate Interview Plan
+|--------------------------------------------------------------------------
+*/
 
 export const generateInterviewPlan = async (
     input: GenerateInterviewPlanDto
@@ -40,7 +175,9 @@ export const generateInterviewPlan = async (
      * =========================================================================
      */
 
-    if (!input.candidateProfile) {
+    if (
+        !input.candidateProfile
+    ) {
 
         throw new Error(
             "InterviewPlannerAgent: candidateProfile is required."
@@ -76,7 +213,9 @@ export const generateInterviewPlan = async (
      */
 
     const userPrompt =
-        buildPlannerPrompt(input);
+        buildPlannerPrompt(
+            input
+        );
 
 
     try {
@@ -124,14 +263,16 @@ export const generateInterviewPlan = async (
             });
 
 
-        const interviewPlan =
+        const generatedPlan =
             response
                 .choices[0]
                 ?.message
                 .parsed;
 
 
-        if (!interviewPlan) {
+        if (
+            !generatedPlan
+        ) {
 
             throw new Error(
                 "InterviewPlannerAgent: OpenAI failed to return a structured interview plan."
@@ -141,7 +282,24 @@ export const generateInterviewPlan = async (
 
         /*
          * =========================================================================
-         * 4. Validate claim IDs and claim roles
+         * 4. Repair duplicate PRIMARY claims
+         * =========================================================================
+         *
+         * Do this BEFORE validation.
+         *
+         * This prevents a valid interview from failing just because
+         * the LLM repeated a project claim as PRIMARY.
+         */
+
+        const interviewPlan =
+            repairDuplicatePrimaryClaims(
+                generatedPlan as InterviewPlan
+            );
+
+
+        /*
+         * =========================================================================
+         * 5. Validate claim IDs and claim roles
          * =========================================================================
          */
 
@@ -183,6 +341,12 @@ export const generateInterviewPlan = async (
                     stageClaim.claimId;
 
 
+                /*
+                 * ---------------------------------------------------------------
+                 * Validate claim ID
+                 * ---------------------------------------------------------------
+                 */
+
                 if (
                     !validClaimIds.has(
                         claimId
@@ -194,6 +358,12 @@ export const generateInterviewPlan = async (
                     );
                 }
 
+
+                /*
+                 * ---------------------------------------------------------------
+                 * Validate PRIMARY uniqueness across stages
+                 * ---------------------------------------------------------------
+                 */
 
                 if (
                     stageClaim.role ===
@@ -207,7 +377,7 @@ export const generateInterviewPlan = async (
                     ) {
 
                         throw new Error(
-                            `InterviewPlannerAgent: Claim "${claimId}" is PRIMARY in more than one stage.`
+                            `InterviewPlannerAgent: Claim "${claimId}" is PRIMARY in more than one stage after repair.`
                         );
                     }
 
@@ -222,18 +392,36 @@ export const generateInterviewPlan = async (
 
         /*
          * =========================================================================
-         * 5. Validate claim relationships
+         * 6. Validate stage PRIMARY structure
+         * =========================================================================
+         */
+
+        validateStagePrimaryClaims(
+            interviewPlan
+        );
+
+
+        /*
+         * =========================================================================
+         * 7. Validate claim relationships
          * =========================================================================
          */
 
         const claimRelationships =
-            interviewPlan.claimRelationships ?? [];
+            interviewPlan.claimRelationships ??
+            [];
 
 
         for (
             const relationship
             of claimRelationships
         ) {
+
+            /*
+             * ---------------------------------------------------------------
+             * Validate fromClaimId
+             * ---------------------------------------------------------------
+             */
 
             if (
                 !validClaimIds.has(
@@ -247,6 +435,12 @@ export const generateInterviewPlan = async (
             }
 
 
+            /*
+             * ---------------------------------------------------------------
+             * Validate toClaimId
+             * ---------------------------------------------------------------
+             */
+
             if (
                 !validClaimIds.has(
                     relationship.toClaimId
@@ -258,6 +452,12 @@ export const generateInterviewPlan = async (
                 );
             }
 
+
+            /*
+             * ---------------------------------------------------------------
+             * Prevent self relationships
+             * ---------------------------------------------------------------
+             */
 
             if (
                 relationship.fromClaimId ===
@@ -273,7 +473,36 @@ export const generateInterviewPlan = async (
 
         /*
          * =========================================================================
-         * 6. Validate question count
+         * 8. Validate relationship enum values
+         * =========================================================================
+         *
+         * This protects the TypeScript contract if the Zod schema and
+         * ClaimRelationshipType enum ever drift apart.
+         */
+
+        for (
+            const relationship
+            of claimRelationships
+        ) {
+
+            if (
+                !Object.values(
+                    ClaimRelationshipType
+                ).includes(
+                    relationship.relation
+                )
+            ) {
+
+                throw new Error(
+                    `InterviewPlannerAgent: Invalid claim relationship type "${relationship.relation}".`
+                );
+            }
+        }
+
+
+        /*
+         * =========================================================================
+         * 9. Validate question count
          * =========================================================================
          */
 
@@ -303,12 +532,13 @@ export const generateInterviewPlan = async (
 
         /*
          * =========================================================================
-         * 7. Validate duration
+         * 10. Validate duration
          * =========================================================================
          */
 
         if (
-            interviewPlan.estimatedDurationMinutes <= 0
+            interviewPlan.estimatedDurationMinutes <=
+            0
         ) {
 
             throw new Error(
@@ -319,45 +549,20 @@ export const generateInterviewPlan = async (
 
         /*
          * =========================================================================
-         * 8. Defensive enum validation
+         * 11. Return validated and repaired plan
          * =========================================================================
-         *
-         * This protects the TypeScript contract if the Zod schema and
-         * ClaimRelationshipType enum ever drift apart.
          */
 
-        for (
-            const relationship
-            of claimRelationships
+        return interviewPlan;
+
+
+    } catch (
+        error
+    ) {
+
+        if (
+            error instanceof Error
         ) {
-
-            if (
-                !Object.values(
-                    ClaimRelationshipType
-                ).includes(
-                    relationship.relation
-                )
-            ) {
-
-                throw new Error(
-                    `InterviewPlannerAgent: Invalid claim relationship type "${relationship.relation}".`
-                );
-            }
-        }
-
-
-        /*
-         * =========================================================================
-         * 9. Return validated plan
-         * =========================================================================
-         */
-
-        return interviewPlan as InterviewPlan;
-
-
-    } catch (error) {
-
-        if (error instanceof Error) {
 
             throw new Error(
                 `InterviewPlannerAgent Error: ${error.message}`

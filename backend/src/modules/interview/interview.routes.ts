@@ -1,29 +1,76 @@
-import { Router } from "express";
+import {
+    Router,
+} from "express";
 
 import {
-    createInterview,
     startInterview,
-    submitAnswer,
+    submitTurn,
+    getInterview,
+    endInterview,
 } from "./interview.controller.js";
 
 
-const router = Router();
+const router =
+    Router();
+
+
+/*
+|--------------------------------------------------------------------------
+| Start Interview
+|--------------------------------------------------------------------------
+|
+| POST /api/interviews
+|
+*/
 
 router.post(
     "/",
-    createInterview
-);
-
-
-router.post(
-    "/:sessionId/start",
     startInterview
 );
 
 
+/*
+|--------------------------------------------------------------------------
+| Get Interview Session
+|--------------------------------------------------------------------------
+|
+| GET /api/interviews/:sessionId
+|
+*/
+
+router.get(
+    "/:sessionId",
+    getInterview
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| Submit Interview Turn
+|--------------------------------------------------------------------------
+|
+| POST /api/interviews/:sessionId/turns
+|
+*/
+
 router.post(
-    "/:sessionId/answer",
-    submitAnswer
+    "/:sessionId/turns",
+    submitTurn
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| End Interview
+|--------------------------------------------------------------------------
+|
+| POST /api/interviews/:sessionId/end
+|
+*/
+
+router.post(
+    "/:sessionId/end",
+    endInterview
 );
 
 

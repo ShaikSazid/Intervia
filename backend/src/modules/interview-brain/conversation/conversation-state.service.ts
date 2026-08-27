@@ -6,6 +6,7 @@ import {
 
 import {
     AnswerEvaluation,
+    AnswerBehavior,
 } from "../../answer-evaluation/answer-evaluation.types.js";
 
 import {
@@ -13,295 +14,327 @@ import {
 } from "../candidate/investigation-attempt.types.js";
 
 
-const NO_ANSWER_VALUES = new Set([
-    "i don't know",
-    "i dont know",
-    "i don't remember",
-    "i dont remember",
-    "no idea",
-    "not sure",
-]);
-
-
-const FRUSTRATION_PATTERNS = [
-    "why are you asking",
-    "same question",
-    "you already asked",
-    "you keep asking",
-    "stop asking",
-    "worst interview",
-    "this is the worst interview",
-    "this interview is bad",
-    "i already told you",
-];
-
-
 const MAX_RECENT_QUESTIONS = 5;
 
-const GUIDED_RECOVERY_AFTER_FAILURES = 1;
-
-const FUNDAMENTALS_AFTER_FAILURES = 3;
-
 
 /*
  * ============================================================
- * Normalize text
- * ============================================================
- */
-
-const normalizeText = (
-    value: string
-): string => {
-
-    return value
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, " ");
-};
-
-
-/*
- * ============================================================
- * Detect explicit no-answer
- * ============================================================
- */
-
-const isNoAnswer = (
-    answer: string
-): boolean => {
-
-    return NO_ANSWER_VALUES.has(
-        normalizeText(answer)
-    );
-};
-
-
-/*
- * ============================================================
- * Detect candidate frustration
- * ============================================================
- */
-
-const detectCandidateFrustration = (
-    answer: string
-): boolean => {
-
-    const normalized =
-        normalizeText(answer);
-
-    return FRUSTRATION_PATTERNS.some(
-        (pattern) =>
-            normalized.includes(pattern)
-    );
-};
-
-
-/*
- * ============================================================
- * Determine conversation mode
+ * Determine Conversation Mode
  * ============================================================
  *
- * The mode describes HOW the interviewer should behave.
+ * AnswerBehavior is now the authoritative signal.
  *
- * It is intentionally separate from:
- *
- * - claim
- * - investigation area
- * - interview stage
- *
- * This is conversational control.
+ * We deliberately keep the existing ConversationMode values
+ * for now. New explicit Brain decisions such as CHANGE_ANGLE
+ * and CLARIFY_CONTRADICTION will be added later.
  */
 
 const determineConversationMode = (
     previousMode: InterviewConversationMode,
-    evaluation: AnswerEvaluation,
-    answer: string,
+    answerBehavior: AnswerBehavior,
     failedAttempts: number,
-    candidateFrustrated: boolean,
 ): InterviewConversationMode => {
 
-    /*
-     * Candidate frustration takes precedence.
-     *
-     * The interviewer should stop pushing the same
-     * conversational pattern.
-     */
+    switch (answerBehavior) {
 
-    if (candidateFrustrated) {
+        /*
+         * Candidate does not know the answer.
+         *
+         * Make the next question simpler and more concrete.
+         */
 
-        return "GUIDED_RECOVERY";
-    }
+        case "NO_ANSWER":
 
-
-    /*
-     * Explicit non-answer.
-     */
-
-    if (
-        isNoAnswer(answer)
-    ) {
-
-        if (
-            failedAttempts >=
-            FUNDAMENTALS_AFTER_FAILURES
-        ) {
-
-            return "FUNDAMENTALS_CHECK";
-        }
-
-
-        if (
-            failedAttempts >=
-            GUIDED_RECOVERY_AFTER_FAILURES
-        ) {
+            if (failedAttempts >= 3) {
+                return "FUNDAMENTALS_CHECK";
+            }
 
             return "GUIDED_RECOVERY";
+
+
+        /*
+         * Candidate may know the concept but cannot remember
+         * the exact implementation.
+         *
+         * Do not immediately treat this as lack of knowledge.
+         */
+
+        case "DONT_REMEMBER":
+
+            return "GUIDED_RECOVERY";
+
+
+        /*
+         * Candidate answered something unrelated.
+         *
+         * Recover the conversation rather than treating the
+         * unrelated answer as evidence for the current claim.
+         */
+
+        case "OFF_TOPIC":
+
+            return "GUIDED_RECOVERY";
+
+
+        /*
+         * Candidate explicitly expressed frustration.
+         *
+         * Stay away from the same question pattern.
+         */
+
+        case "FRUSTRATED":
+
+            return "GUIDED_RECOVERY";
+
+
+        /*
+         * Contradiction requires clarification.
+         *
+         * For now, keep the conversation in a controlled recovery
+         * mode. A dedicated contradiction decision will come later.
+         */
+
+        case "CONTRADICTORY":
+
+            return "GUIDED_RECOVERY";
+
+
+        /*
+         * Strong answer.
+         *
+         * Return to normal claim investigation so the Brain can
+         * decide whether deeper investigation is justified.
+         */
+
+        case "STRONG":
+
+            return "CLAIM_INVESTIGATION";
+
+
+        /*
+         * Partial answer.
+         *
+         * Continue normal investigation because the candidate
+         * has provided some useful evidence.
+         */
+
+        case "PARTIAL":
+
+            return "CLAIM_INVESTIGATION";
+
+
+        /*
+         * Weak but relevant answer.
+         *
+         * Stay in claim investigation unless repeated failure
+         * has already pushed the interview toward recovery.
+         */
+
+        case "WEAK":
+
+            if (failedAttempts >= 3) {
+                return "FUNDAMENTALS_CHECK";
+            }
+
+            return "GUIDED_RECOVERY";
+
+
+        default: {
+
+            const exhaustiveCheck:
+                never =
+                answerBehavior;
+
+            return exhaustiveCheck;
         }
-
-
-        return "CLAIM_INVESTIGATION";
     }
-
-
-    /*
-     * Weak answer.
-     */
-
-    if (
-        evaluation.score < 5
-    ) {
-
-        if (
-            failedAttempts >=
-            FUNDAMENTALS_AFTER_FAILURES
-        ) {
-
-            return "FUNDAMENTALS_CHECK";
-        }
-
-
-        return "GUIDED_RECOVERY";
-    }
-
-
-    /*
-     * Strong answer that still requires additional evidence.
-     *
-     * Stay in normal claim investigation.
-     */
-
-    if (
-        evaluation.score >= 8 &&
-        evaluation.followUpRequired === false
-    ) {
-
-        return "CLAIM_INVESTIGATION";
-    }
-
-
-    /*
-     * Moderate answer.
-     */
-
-    if (
-        evaluation.followUpRequired
-    ) {
-
-        return "CLAIM_INVESTIGATION";
-    }
-
-
-    /*
-     * Preserve the previous mode when nothing requires
-     * a conversational transition.
-     */
-
-    return previousMode;
 };
 
 
 /*
  * ============================================================
- * Determine thread status
+ * Determine Failed Attempt Count
+ * ============================================================
+ *
+ * Not every non-strong answer is the same.
+ *
+ * NO_ANSWER:
+ *     strong failure signal
+ *
+ * DONT_REMEMBER:
+ *     unsuccessful for this question, but weaker signal
+ *
+ * OFF_TOPIC:
+ *     unproductive, but not necessarily lack of knowledge
+ *
+ * FRUSTRATED:
+ *     do not punish the candidate's technical confidence
+ *
+ * STRONG / PARTIAL:
+ *     reset consecutive failure count
+ */
+
+const determineFailedAttempts = (
+    currentFailedAttempts: number,
+    answerBehavior: AnswerBehavior,
+): number => {
+
+    switch (answerBehavior) {
+
+        case "NO_ANSWER":
+
+            return currentFailedAttempts + 1;
+
+
+        case "DONT_REMEMBER":
+
+            return currentFailedAttempts + 1;
+
+
+        case "OFF_TOPIC":
+
+            return currentFailedAttempts + 1;
+
+
+        case "WEAK":
+
+            return currentFailedAttempts + 1;
+
+
+        /*
+         * Frustration is a conversational event, not evidence
+         * that the candidate lacks technical ability.
+         */
+
+        case "FRUSTRATED":
+
+            return currentFailedAttempts;
+
+
+        /*
+         * Contradiction needs clarification, but should not
+         * automatically count as lack of knowledge.
+         */
+
+        case "CONTRADICTORY":
+
+            return currentFailedAttempts;
+
+
+        case "PARTIAL":
+
+            return 0;
+
+
+        case "STRONG":
+
+            return 0;
+
+
+        default: {
+
+            const exhaustiveCheck:
+                never =
+                answerBehavior;
+
+            return exhaustiveCheck;
+        }
+    }
+};
+
+
+/*
+ * ============================================================
+ * Determine Thread Status
  * ============================================================
  */
 
 const determineThreadStatus = (
-    evaluation: AnswerEvaluation,
-    answer: string,
+    answerBehavior: AnswerBehavior,
     failedAttempts: number,
-    candidateFrustrated: boolean,
 ): ConversationThreadStatus => {
 
-    /*
-     * Candidate frustration means the current thread should
-     * not continue in exactly the same form.
-     */
+    switch (answerBehavior) {
 
-    if (candidateFrustrated) {
+        /*
+         * Explicit frustration means the current conversational
+         * pattern should not simply continue unchanged.
+         */
 
-        return "BLOCKED";
+        case "FRUSTRATED":
+
+            return "BLOCKED";
+
+
+        /*
+         * Repeated inability to answer means the current
+         * investigation thread is no longer productive.
+         */
+
+        case "NO_ANSWER":
+
+            return failedAttempts >= 3
+                ? "BLOCKED"
+                : "OPEN";
+
+
+        case "DONT_REMEMBER":
+
+            return failedAttempts >= 3
+                ? "BLOCKED"
+                : "OPEN";
+
+
+        case "OFF_TOPIC":
+
+            return failedAttempts >= 2
+                ? "BLOCKED"
+                : "OPEN";
+
+
+        case "CONTRADICTORY":
+
+            return "OPEN";
+
+
+        /*
+         * A strong answer can resolve the current question
+         * without necessarily ending the overall claim.
+         */
+
+        case "STRONG":
+
+            return "RESOLVED";
+
+
+        case "PARTIAL":
+
+            return "OPEN";
+
+
+        case "WEAK":
+
+            return failedAttempts >= 3
+                ? "BLOCKED"
+                : "OPEN";
+
+
+        default: {
+
+            const exhaustiveCheck:
+                never =
+                answerBehavior;
+
+            return exhaustiveCheck;
+        }
     }
-
-
-    /*
-     * Explicit no-answer.
-     */
-
-    if (
-        isNoAnswer(answer)
-    ) {
-
-        return failedAttempts >= 2
-            ? "BLOCKED"
-            : "OPEN";
-    }
-
-
-    /*
-     * Weak answer.
-     */
-
-    if (
-        evaluation.score < 5
-    ) {
-
-        return failedAttempts >= 3
-            ? "BLOCKED"
-            : "OPEN";
-    }
-
-
-    /*
-     * Strong and sufficiently complete answer.
-     */
-
-    if (
-        evaluation.score >= 8 &&
-        !evaluation.followUpRequired
-    ) {
-
-        return "RESOLVED";
-    }
-
-
-    /*
-     * Moderate/incomplete answer.
-     */
-
-    return "OPEN";
 };
 
 
 /*
  * ============================================================
- * Build demonstrated evidence
+ * Update Demonstrated Evidence
  * ============================================================
- *
- * We currently use evaluator feedback plus the investigation
- * objective as a coarse evidence representation.
- *
- * Later we can replace this with a dedicated evidence extractor.
  */
 
 const updateDemonstratedEvidence = (
@@ -310,9 +343,17 @@ const updateDemonstratedEvidence = (
     attempt: InvestigationAttempt,
 ): string[] => {
 
+    /*
+     * Only strong answers should automatically establish
+     * demonstrated evidence.
+     *
+     * Partial answers may contain useful information, but we
+     * currently don't want to treat them as fully established.
+     */
+
     if (
-        evaluation.score < 7 ||
-        evaluation.followUpRequired
+        evaluation.answerBehavior !==
+        "STRONG"
     ) {
 
         return currentEvidence;
@@ -330,7 +371,7 @@ const updateDemonstratedEvidence = (
 
 /*
  * ============================================================
- * Build missing evidence
+ * Update Missing Evidence
  * ============================================================
  */
 
@@ -340,25 +381,39 @@ const updateMissingEvidence = (
     attempt: InvestigationAttempt,
 ): string[] => {
 
-    const shouldRemainMissing =
-        evaluation.score < 7 ||
-        evaluation.followUpRequired ||
-        attempt.outcome === "NO_ANSWER" ||
-        attempt.outcome === "WEAK";
+    switch (
+        evaluation.answerBehavior
+    ) {
+
+        /*
+         * Strong answer can remove the current objective from
+         * the list of missing evidence.
+         */
+
+        case "STRONG": {
+
+            return currentEvidence.filter(
+                (evidence) =>
+                    evidence !==
+                    attempt.objective
+            );
+        }
 
 
-    if (!shouldRemainMissing) {
+        /*
+         * Everything else leaves the objective unresolved.
+         */
 
-        return currentEvidence;
+        default: {
+
+            return [
+                ...new Set([
+                    ...currentEvidence,
+                    attempt.objective,
+                ]),
+            ];
+        }
     }
-
-
-    return [
-        ...new Set([
-            ...currentEvidence,
-            attempt.objective,
-        ]),
-    ];
 };
 
 
@@ -392,40 +447,34 @@ export const updateConversationState = (
     } = input;
 
 
-    const candidateFrustrated =
-        detectCandidateFrustration(
-            answer
-        );
+    /*
+     * ============================================================
+     * 1. Answer behavior
+     * ============================================================
+     *
+     * This is now the primary conversational signal.
+     */
 
-
-    const noAnswer =
-        isNoAnswer(
-            answer
-        );
+    const answerBehavior =
+        evaluation.answerBehavior;
 
 
     /*
      * ============================================================
-     * Failed attempt counter
+     * 2. Failed attempt count
      * ============================================================
      */
 
-    const failedAnswer =
-        noAnswer ||
-        evaluation.score < 5 ||
-        attempt.outcome === "NO_ANSWER" ||
-        attempt.outcome === "WEAK";
-
-
     const failedAttempts =
-        failedAnswer
-            ? currentState.failedAttempts + 1
-            : 0;
+        determineFailedAttempts(
+            currentState.failedAttempts,
+            answerBehavior,
+        );
 
 
     /*
      * ============================================================
-     * Demonstrated evidence
+     * 3. Demonstrated evidence
      * ============================================================
      */
 
@@ -433,13 +482,13 @@ export const updateConversationState = (
         updateDemonstratedEvidence(
             currentState.demonstratedEvidence,
             evaluation,
-            attempt
+            attempt,
         );
 
 
     /*
      * ============================================================
-     * Missing evidence
+     * 4. Missing evidence
      * ============================================================
      */
 
@@ -447,44 +496,40 @@ export const updateConversationState = (
         updateMissingEvidence(
             currentState.missingEvidence,
             evaluation,
-            attempt
+            attempt,
         );
 
 
     /*
      * ============================================================
-     * Thread status
+     * 5. Thread status
      * ============================================================
      */
 
     const threadStatus =
         determineThreadStatus(
-            evaluation,
-            answer,
+            answerBehavior,
             failedAttempts,
-            candidateFrustrated
         );
 
 
     /*
      * ============================================================
-     * Conversation mode
+     * 6. Conversation mode
      * ============================================================
      */
 
     const mode =
         determineConversationMode(
             currentState.mode,
-            evaluation,
-            answer,
+            answerBehavior,
             failedAttempts,
-            candidateFrustrated
         );
 
 
     /*
      * ============================================================
-     * Recent questions
+     * 7. Recent questions
      * ============================================================
      */
 
@@ -506,7 +551,7 @@ export const updateConversationState = (
 
     /*
      * ============================================================
-     * Recent answers
+     * 8. Recent answers
      * ============================================================
      */
 
@@ -520,14 +565,25 @@ export const updateConversationState = (
 
     /*
      * ============================================================
-     * Contradictions
+     * 9. Candidate frustration
      * ============================================================
      *
-     * We are not automatically detecting semantic contradictions
-     * yet.
+     * We now trust the evaluator instead of searching the raw
+     * answer text ourselves.
+     */
+
+    const candidateFrustrated =
+        currentState.candidateFrustrated ||
+        answerBehavior === "FRUSTRATED";
+
+
+    /*
+     * ============================================================
+     * 10. Contradictions
+     * ============================================================
      *
-     * Keep the existing structure intact until that component
-     * is introduced.
+     * Detection itself will be implemented separately.
+     * Do not invent contradictions here.
      */
 
     const unresolvedContradictions =
@@ -536,7 +592,7 @@ export const updateConversationState = (
 
     /*
      * ============================================================
-     * Return updated state
+     * 11. Return new immutable state
      * ============================================================
      */
 
@@ -562,8 +618,6 @@ export const updateConversationState = (
 
         unresolvedContradictions,
 
-        candidateFrustrated:
-            currentState.candidateFrustrated ||
-            candidateFrustrated,
+        candidateFrustrated,
     };
 };

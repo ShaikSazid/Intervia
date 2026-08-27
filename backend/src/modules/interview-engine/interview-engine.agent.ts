@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 
+import { openai } from "../../lib/openai.js";
+
 import { env } from "../../config/env.js";
 
 import { buildInterviewPrompt } from "./interview-engine.builder.js";
@@ -9,11 +11,8 @@ import { interviewQuestionSchema } from "./interview-engine.schema.js";
 import { GenerateQuestionInput, InterviewQuestion } from "./interview-engine.types.js";
 import { InterviewContext } from "../interview-context/interview-context.types.js";
 
-const openai = new OpenAI({
-    apiKey: env.OPENAI_API_KEY,
-});
 
-const MODEL_NAME = "gpt-4o";
+const MODEL_NAME = "gemini-2.5-flash";
 
 export const generateInterviewQuestion = async (
     input: GenerateQuestionInput
