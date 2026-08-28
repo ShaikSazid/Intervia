@@ -13,6 +13,10 @@ const envSchema = z.object({
     AWS_SECRET_ACCESS_KEY: z.string().min(1),
     OPENAI_API_KEY: z.string().min(1),
     GEMINI_API_KEY: z.string().min(1),
+    NODE_ENV: z
+    .enum(["development", "production", "test"])
+    .default("development"),
+    FRONTEND_URL: z.url(),
 });
 
 export const env = envSchema.parse(process.env);

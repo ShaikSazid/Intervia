@@ -21,6 +21,7 @@ import { errorHandler }
 import cookieParser from "cookie-parser";
 
 import cors from "cors";
+import { env } from "./config/env.js";
 
 
 const app = express();
@@ -33,8 +34,7 @@ const app = express();
 */
 
 const allowedOrigins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
+    env.FRONTEND_URL
 ];
 
 

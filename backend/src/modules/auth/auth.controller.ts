@@ -13,6 +13,8 @@ import {
     UnauthorizedError,
 } from "../../errors/UnauthorizedError.js";
 
+import { env } from "../../config/env.js";
+
 
 export const signup =
     asyncHandler(
@@ -62,24 +64,13 @@ export const login =
                     data
                 );
 
-
-            /*
-             * Refresh token is kept in an HttpOnly cookie.
-             *
-             * Local development:
-             * - secure: false because we use http://localhost
-             * - sameSite: "lax" keeps normal same-site requests working
-             * - path: "/api/auth" means the cookie is sent to
-             *   /api/auth/refresh and /api/auth/logout
-             */
-
             res.cookie(
                 "refreshToken",
                 result.refreshToken,
                 {
                     httpOnly: true,
 
-                    secure: false,
+                    secure: env.NODE_ENV === "production",
 
                     sameSite: "lax",
 
