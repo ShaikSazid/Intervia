@@ -70,9 +70,9 @@ export const login =
                 {
                     httpOnly: true,
 
-                    secure: env.NODE_ENV === "production",
+                    secure: true,
 
-                    sameSite: "lax",
+                    sameSite: "none",
 
                     path: "/api/auth",
 
@@ -139,9 +139,9 @@ export const logout =
                 {
                     httpOnly: true,
 
-                    secure: false,
+                    secure: true,
 
-                    sameSite: "lax",
+                    sameSite: "none",
 
                     path: "/api/auth",
                 }
