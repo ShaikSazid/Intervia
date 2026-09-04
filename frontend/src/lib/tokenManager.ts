@@ -5,7 +5,10 @@ export const tokenManager = {
         return accessToken;
     },
 
-    setToken(token: string | null): void {
+
+    setToken(
+        token: string | null
+    ): void {
         accessToken = token;
     },
 
