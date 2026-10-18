@@ -18,8 +18,12 @@ export const generateInterviewQuestion = async (
     input: GenerateQuestionInput
 ): Promise<InterviewQuestion> => {
     const userPrompt = buildInterviewPrompt(input);
+    console.log(
+    `[InterviewTiming] Question generation prompt chars: ${userPrompt.length}`
+);
 
     try {
+        const llmStart = performance.now();
         const response = await openai.chat.completions.parse({
             model: MODEL_NAME,
             temperature: 0.2,
@@ -40,6 +44,10 @@ export const generateInterviewQuestion = async (
                 "interview-question"
             ),
         });
+
+        console.log(
+    `[InterviewTiming] Interview question Gemini request: ${(performance.now() - llmStart).toFixed(0)}ms`
+);
 
         const question = response.choices[0]?.message.parsed;
 

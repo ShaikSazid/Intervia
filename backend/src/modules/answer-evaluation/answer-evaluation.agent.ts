@@ -21,7 +21,12 @@ export const generateAnswerEvaluation = async (
     const userPrompt =
         buildAnswerEvaluationPrompt(input);
 
+        console.log(
+    `[InterviewTiming] Answer evaluation prompt chars: ${userPrompt.length}`
+);
+
     try {
+        const llmStart = performance.now();
 
         const response =
             await openai.chat.completions.parse({
@@ -57,6 +62,10 @@ export const generateAnswerEvaluation = async (
                         "answer_evaluation"
                     ),
             });
+
+            console.log(
+        `[InterviewTiming] Answer evaluation Gemini request: ${(performance.now() - llmStart).toFixed(0)}ms`
+    );
 
 
         const evaluation =

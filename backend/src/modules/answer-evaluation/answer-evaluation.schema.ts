@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-
 export const answerBehaviorSchema =
     z.enum([
         "STRONG",
@@ -13,10 +12,8 @@ export const answerBehaviorSchema =
         "CONTRADICTORY",
     ]);
 
-
 export const answerEvaluationSchema =
     z.object({
-
         score:
             z.number()
                 .min(0)
