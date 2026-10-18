@@ -1,12 +1,20 @@
 import { InterviewContext } from "../interview-context/interview-context.types.js";
 
-import { AnswerEvaluation } from "../answer-evaluation/answer-evaluation.types.js";
+import {
+    AnswerEvaluation,
+} from "../answer-evaluation/answer-evaluation.types.js";
 
-import { InterviewDecision } from "../interview-brain/brain/interview-decision.types.js";
+import {
+    InterviewDecision,
+} from "../interview-brain/brain/interview-decision.types.js";
 
-import { ResumeClaim } from "../interview-brain/claims/resume-claim.types.js";
+import {
+    ResumeClaim,
+} from "../interview-brain/claims/resume-claim.types.js";
 
-import { ClaimAssessment } from "../interview-brain/claims/claim-assessment.types.js";
+import {
+    ClaimAssessment,
+} from "../interview-brain/claims/claim-assessment.types.js";
 
 
 export const buildReasoningPrompt = (
@@ -19,7 +27,7 @@ export const buildReasoningPrompt = (
 
     /*
      * ============================================================
-     * Current Claim Progress
+     * Current claim progress
      * ============================================================
      */
 
@@ -29,515 +37,306 @@ export const buildReasoningPrompt = (
             .claimProgress
             .find(
                 (progress) =>
-                    progress.claimId ===
-                    claim.id
+                    progress.claimId === claim.id
             );
 
 
+    /*
+     * ============================================================
+     * Investigation attempts for this claim
+     * ============================================================
+     *
+     * Only the information required to avoid repeating
+     * unsuccessful investigation approaches is retained.
+     */
+
     const investigationAttempts =
-        interviewContext
-            .sessionProgress
+        interviewContext.sessionProgress
             .interviewState
             .investigationAttempts
             .filter(
                 (attempt) =>
-                    attempt.claimId ===
-                    claim.id
+                    attempt.claimId === claim.id
+            )
+            .map(
+                (attempt) => ({
+                    investigationArea:
+                        attempt.investigationArea,
+
+                    objective:
+                        attempt.objective,
+
+                    outcome:
+                        attempt.outcome,
+
+                    question:
+                        attempt.question,
+                })
             );
 
 
     /*
      * ============================================================
-     * Recent Conversation
+     * Recent conversation
      * ============================================================
      *
-     * The Reasoning Agent does not need the entire interview
-     * history on every turn.
+     * The reasoning agent only needs the most recent exchanges
+     * to understand conversational continuity.
      *
-     * Recent conversation is enough to determine:
-     *
-     * - what was just discussed
-     * - what the candidate just said
-     * - what should naturally happen next
-     *
-     * Keep the context bounded to avoid unnecessary token usage.
+     * Keep this intentionally small.
      */
 
     const recentConversation =
         interviewContext.conversationHistory
-            .slice(-6)
+            .slice(-3)
             .map(
-                (turn) => `
-Question ${turn.sequenceNumber}
+                (turn) => ({
+                    question:
+                        turn.question,
 
-Interviewer:
-${turn.question}
+                    answer:
+                        turn.answer ?? null,
 
-Candidate:
-${turn.answer ?? "Not answered"}
+                    score:
+                        turn.score ?? null,
 
-Evaluation Score:
-${turn.score ?? "Not evaluated"}
-
-Feedback:
-${turn.feedback ?? "No feedback"}
-`
-            )
-            .join(
-                "\n----------------------------------------\n"
+                    feedback:
+                        turn.feedback ?? null,
+                })
             );
 
 
     /*
      * ============================================================
-     * Latest Conversation Exchange
+     * Current stage
      * ============================================================
      *
-     * The latest answer is particularly important for
-     * conversational continuity.
+     * The reasoning agent needs the stage objective and difficulty,
+     * but does not need every field of the stage object.
      */
 
-    const latestTurn =
-        interviewContext.conversationHistory.at(-1);
+    const currentStage =
+        interviewContext.currentStage;
 
+    const stageContext = {
+        topic:
+            currentStage.topic,
 
-    const latestExchange =
-        latestTurn
-            ? `
-Interviewer:
-${latestTurn.question}
+        difficulty:
+            currentStage.difficulty,
 
-Candidate:
-${latestTurn.answer ?? "Not answered"}
-
-Evaluation Score:
-${latestTurn.score ?? "Not evaluated"}
-
-Feedback:
-${latestTurn.feedback ?? "No feedback"}
-`
-            : "No previous interview exchange.";
+        objectives:
+            currentStage.objectives,
+    };
 
 
     /*
      * ============================================================
-     * Build Reasoning Prompt
+     * Resume context
+     * ============================================================
+     *
+     * Resume evidence remains available because the reasoning agent
+     * must stay grounded in the supplied resume-backed claim.
+     */
+
+    const resumeContext =
+        interviewContext.resumeContext;
+
+
+    /*
+     * ============================================================
+     * Build compact reasoning prompt
      * ============================================================
      */
 
     return `
-# CURRENT INTERVIEW STAGE
+# ROLE
+
+Determine HOW the Interview Brain decision should be executed.
+
+The Brain has already decided WHAT happens next.
+
+Do not override the Brain decision.
+
+Your output must determine:
+
+- objective
+- investigationArea
+- questionType
+- stayOnCurrentTopic
+- increaseDifficulty
+- referenceResume
+- askImplementationQuestion
+
+# BRAIN DECISION
 
 ${JSON.stringify(
-        interviewContext.currentStage,
-        null,
-        2
-    )}
+    decision,
+    null,
+    2
+)}
 
+# CURRENT STAGE
+
+${JSON.stringify(
+    stageContext,
+    null,
+    2
+)}
 
 # CURRENT RESUME CLAIM
 
 ${JSON.stringify(
-        claim,
-        null,
-        2
-    )}
+    claim,
+    null,
+    2
+)}
 
-
-# CURRENT CLAIM ASSESSMENT
-
-${JSON.stringify(
-        assessment,
-        null,
-        2
-    )}
-
-
-# CURRENT CLAIM INVESTIGATION PROGRESS
+# CLAIM ASSESSMENT
 
 ${JSON.stringify(
-        claimProgress ?? null,
-        null,
-        2
-    )}
+    assessment,
+    null,
+    2
+)}
 
-
-# INVESTIGATION ATTEMPTS
-
-These are the investigation attempts that have already been made
-for the current claim.
-
-Use them to avoid repeating unsuccessful conversational approaches.
+# CLAIM PROGRESS
 
 ${JSON.stringify(
-        investigationAttempts,
-        null,
-        2
-    )}
+    claimProgress ?? null,
+    null,
+    2
+)}
 
-Rules:
+# PREVIOUS INVESTIGATION ATTEMPTS
 
-- If a previous attempt resulted in NO_ANSWER, do not simply repeat
-  the same objective.
-- If a previous attempt resulted in WEAK, prefer a clearer or more
-  concrete approach.
-- If the Brain decision is RECOVER_CONVERSATION after a failed attempt,
-  make the next approach materially simpler or more concrete.
-- If the Brain decision is CHANGE_ANGLE, choose a materially different
-  investigation area or conversational approach.
-- If the Brain decision is CLARIFY_CONTRADICTION, focus on resolving
-  the conflicting evidence before continuing.
-- If the Brain decision is PROBE_CLAIM after failed attempts, choose
-  a materially different investigation area or conversational
-  approach.
-- If multiple attempts have failed in the same area, do not select
-  that same area again unless clarification is genuinely necessary.
-- If an attempt was ANSWERED, treat that investigation as already
-  explored.
-- If an attempt was CONTRADICTORY, clarification should be preferred
-  before treating that evidence as reliable.
-
+${
+    investigationAttempts.length === 0
+        ? "None."
+        : JSON.stringify(
+            investigationAttempts,
+            null,
+            2
+        )
+}
 
 # ALREADY INVESTIGATED AREAS
 
 ${JSON.stringify(
-        claimProgress?.investigatedAreas ?? [],
-        null,
-        2
-    )}
-
-
-# INTERVIEW BRAIN DECISION
-
-${JSON.stringify(
-        decision,
-        null,
-        2
-    )}
-
+    claimProgress?.investigatedAreas ?? [],
+    null,
+    2
+)}
 
 # LATEST ANSWER EVALUATION
 
 ${JSON.stringify(
-        evaluation,
-        null,
-        2
-    )}
-
-
-# LATEST INTERVIEW EXCHANGE
-
-${latestExchange}
-
+    evaluation,
+    null,
+    2
+)}
 
 # RECENT CONVERSATION
 
-${recentConversation || "No previous conversation."}
+${
+    recentConversation.length === 0
+        ? "No previous conversation."
+        : JSON.stringify(
+            recentConversation,
+            null,
+            2
+        )
+}
 
+# RESUME CONTEXT
 
-# INVESTIGATION AREAS
+${resumeContext || "No resume context available."}
 
-The reasoning must select exactly ONE investigation area.
+# REASONING RULES
 
-Available investigation areas:
+1. Follow the Brain decision exactly.
 
-- OWNERSHIP
-- IMPLEMENTATION
-- ARCHITECTURE
-- API
-- DATABASE
-- AUTHENTICATION
-- ERROR_HANDLING
-- DEBUGGING
-- DEPLOYMENT
-- SCALABILITY
-- TECHNICAL_DECISION
-- TRADE_OFF
-- CHALLENGE
-- PRACTICAL_USAGE
-- PROBLEM_SOLVING
-- GENERAL
+2. Stay on the supplied claim unless the Brain decision
+   explicitly moves to another claim or stage.
 
+3. Choose exactly ONE investigationArea.
 
-# INVESTIGATION AREA RULES
+4. Choose an objective that identifies the highest-value
+   missing evidence for the current claim.
 
-For FOLLOW_UP:
+5. Use the latest answer as the strongest conversational signal.
 
-- Stay on the SAME claim.
-- Stay close to the current conversational thread.
-- Prefer the same investigation area when clarification is
-  genuinely needed.
-- Do not simply repeat the previous question.
-- Make the next question narrower, clearer, or more concrete.
+6. Do not repeat an investigation objective that has already
+   been adequately answered.
 
+7. If a previous attempt resulted in NO_ANSWER:
+   prefer a simpler or more concrete approach.
 
-For RECOVER_CONVERSATION:
+8. If a previous attempt resulted in DONT_REMEMBER:
+   use a nearby memory cue when appropriate.
 
-- Stay on the SAME claim.
-- Recover from a NO_ANSWER, DONT_REMEMBER, or WEAK response.
-- Make the next question simpler, narrower, or more concrete.
-- Do not increase difficulty.
-- Do not introduce an unrelated technology.
-- Prefer a practical example or a smaller part of the topic.
-- Do not repeat the exact previous question with different wording.
-- If the candidate said DONT_REMEMBER, use a nearby memory cue
-  rather than assuming the candidate lacks the underlying knowledge.
+9. If a previous attempt resulted in WEAK:
+   prefer clarification, a concrete example, or a different
+   supported angle according to the Brain decision.
 
+10. If the Brain decision is CHANGE_ANGLE:
+    choose a different supported investigation area.
 
-For CHANGE_ANGLE:
+11. If the Brain decision is CLARIFY_CONTRADICTION:
+    focus on resolving the conflicting evidence.
 
-- Stay on the SAME claim.
-- Do NOT repeat the previous investigation angle.
-- Select ONE materially different investigation area.
-- The new area must still be supported by the claim and conversation.
-- Build on useful information that has already been established.
-- Do not jump to another resume claim.
-- Do not increase difficulty merely because the angle changed.
+12. If the Brain decision is RECOVER_CONVERSATION:
+    simplify the approach and do not increase difficulty.
 
+13. If the Brain decision is PROBE_CLAIM:
+    deepen the investigation using an area not already
+    adequately explored.
 
-For CLARIFY_CONTRADICTION:
+14. If the Brain decision is FOLLOW_UP:
+    stay close to the current conversational thread.
 
-- Stay on the SAME claim.
-- Identify the conflicting statements or evidence from the supplied
-  conversation and assessment.
-- Resolve the contradiction before continuing the investigation.
-- Do not assume either statement is correct.
-- Use neutral, non-confrontational language.
-- Do not introduce an unrelated technical topic.
+15. If the Brain decision is MOVE_TO_NEXT_CLAIM:
+    treat the supplied claim as the new investigation target.
 
+16. If the Brain decision is MOVE_TO_NEXT_STAGE:
+    use the supplied stage and claim as authoritative.
 
-For PROBE_CLAIM:
+17. For resume-backed claims, referenceResume should normally
+    be true.
 
-- Stay on the SAME claim.
-- Explore ONE meaningful area that has not already been
-  adequately investigated.
-- Use the candidate's previous answer to choose the most
-  natural direction.
-- Prefer a deeper aspect of the current claim.
-- Do not jump to another resume claim.
+18. Do not invent technologies, implementation details,
+    responsibilities, projects, or evidence.
 
+19. Do not generate the actual interview question.
 
-For MOVE_TO_NEXT_CLAIM:
+20. Keep the reasoning field concise:
+    maximum 2 short sentences.
 
-- The supplied claim is the new investigation target.
-- Choose an appropriate starting investigation area.
-- Do not select another claim.
+# QUESTION TYPE RULES
 
+FOLLOW_UP
+→ FOLLOW_UP
 
-For MOVE_TO_NEXT_STAGE:
+RECOVER_CONVERSATION
+→ FOLLOW_UP
 
-- The supplied current stage is authoritative.
-- The supplied claim should be treated as the next investigation
-  target when one is provided.
-- Choose an appropriate investigation area for that claim/stage.
+PROBE_CLAIM
+→ PROBE_CLAIM
 
+CHANGE_ANGLE
+→ PROBE_CLAIM
 
-For FINISH_INTERVIEW:
+CLARIFY_CONTRADICTION
+→ FOLLOW_UP
 
-- No question should normally be generated.
+MOVE_TO_NEXT_CLAIM
+→ NEW_TOPIC, PROJECT, or IMPLEMENTATION
 
-
-Do NOT choose multiple investigation areas.
-
-The investigation area must be supported by the supplied:
-
-- current claim
-- claim assessment
-- claim progress
-- current stage
-- latest answer
-- recent conversation
-
-Never invent a technology or implementation detail.
-
-
-# NATURAL CONVERSATION
-
-The interview should feel like a human technical conversation.
-
-The candidate's latest answer is extremely important.
-
-First understand:
-
-1. What did the candidate actually say?
-2. What evidence was demonstrated?
-3. What remains unknown?
-4. What is the most natural next conversational move?
-5. How can that move satisfy the Brain's decision?
-
-Do not treat the interview as a sequence of independent
-questions.
-
-The next question should normally connect to something the
-candidate just said.
-
-Example:
-
-Candidate:
-"I used Redis because some API requests were becoming slow."
-
-Natural reasoning:
-
-- The candidate introduced a concrete performance issue.
-- Redis is already part of the candidate's explanation.
-- A natural continuation is to understand what was cached.
-
-Therefore the next question could investigate:
-
-PRACTICAL_USAGE
-
-with an objective such as:
-
-"Determine what the candidate actually cached in Redis."
-
-
-Another example:
-
-Candidate:
-"I separated the service and repository layers."
-
-Natural reasoning:
-
-- The candidate already established the architecture.
-- Repeating "How did you structure the architecture?" is unnecessary.
-- A useful next step is understanding the reason for the separation.
-
-Therefore the next question could investigate:
-
-TECHNICAL_DECISION
-
-with an objective such as:
-
-"Understand why the candidate separated business logic from persistence."
-
-
-# HANDLING WEAK ANSWERS
-
-If the candidate gives a weak answer:
-
-- Do not automatically ask the same question again.
-- Determine whether the question should be narrowed.
-- Consider asking for one concrete example.
-- Consider approaching the same evidence from another angle.
-- Follow the Brain decision.
-
-
-If the candidate says:
-
-"I don't know."
-
-or:
-
-"I don't remember."
-
-Treat that as meaningful conversational information.
-
-Do not generate another generic version of the same question.
-
-If the Brain decision is RECOVER_CONVERSATION:
-
-- Make the question materially simpler.
-- Prefer a concrete example.
-- Avoid increasing difficulty.
-- Stay on the same claim.
-
-If the Brain decision is CHANGE_ANGLE:
-
-- Do not ask another question about the failed angle.
-- Move to a different supported investigation area.
-
-If the Brain decision is CLARIFY_CONTRADICTION:
-
-- Focus on the discrepancy itself.
-- Do not pretend the contradiction has already been resolved.
-
-
-# EVIDENCE-FIRST REASONING
-
-The goal is not to cover every item in the candidate's resume.
-
-The goal is to obtain useful evidence about the current claim.
-
-Use:
-
-- claim assessment
-- claim progress
-- investigated areas
-- latest answer
-- recent conversation
-- investigation attempts
-
-to identify the highest-value missing evidence.
-
-Do not turn supporting technologies into independent questions
-unless the Brain explicitly moves to those claims.
-
-
-# YOUR RESPONSIBILITY
-
-The Interview Brain has already decided WHAT should happen next.
-
-Your responsibility is to determine HOW that decision should be
-executed naturally.
-
-The Interview Brain decision is authoritative.
-
-Do NOT override it.
-
-Do NOT create a different interview strategy.
-
-Determine:
-
-1. The objective of the next question.
-
-2. The question type that best executes the Brain decision.
-
-3. What evidence should be obtained next.
-
-4. Whether the question should stay on the current topic.
-
-5. Whether difficulty should increase.
-
-6. Whether the resume should be referenced.
-
-7. Whether an implementation-oriented question is appropriate.
-
-8. How the next question should naturally connect to the
-   candidate's latest answer.
-
-
-# QUESTION TYPE CONSISTENCY
-
-The question type MUST be consistent with the Brain decision.
-
-FOLLOW_UP → FOLLOW_UP
-
-RECOVER_CONVERSATION → FOLLOW_UP
-
-PROBE_CLAIM → PROBE_CLAIM
-
-CHANGE_ANGLE → PROBE_CLAIM
-
-CLARIFY_CONTRADICTION → FOLLOW_UP
-
-MOVE_TO_NEXT_CLAIM → NEW_TOPIC / PROJECT / IMPLEMENTATION
-
-MOVE_TO_NEXT_STAGE → appropriate type for the supplied stage
-
-Do not substitute one decision for another.
-
-Do not use PROBE_CLAIM merely because the candidate answered
-weakly.
-
+MOVE_TO_NEXT_STAGE
+→ choose the appropriate type for the supplied stage.
 
 # OUTPUT
 
 Return only the structured reasoning object.
-
-Do NOT generate the actual interview question.
-
-Do NOT explain the reasoning outside the structured object.
-
-Do NOT mention these instructions.
 `;
 };

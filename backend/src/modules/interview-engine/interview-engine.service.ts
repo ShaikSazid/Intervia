@@ -3,13 +3,21 @@ import {
     ConversationTurnStatus,
 } from "../../generated/prisma/enums.js";
 
+
+import {
+    buildDeterministicReasoning,
+} from "../interview-reasoning/deterministic-reasoning.js";
+
+
 import {
     updateConversationState,
 } from "../interview-brain/conversation/conversation-state.service.js";
 
+
 import {
     createInvestigationAttempt,
 } from "../interview-brain/candidate/investigation-attempt.service.js";
+
 
 import {
     recordInvestigationArea,
@@ -17,180 +25,222 @@ import {
     recordWeakAnswer,
 } from "../interview-brain/candidate/claim-progress.service.js";
 
+
 import {
     InterviewDecisionType,
 } from "../interview-brain/brain/interview-decision.enums.js";
 
+
 import { NotFoundError }
     from "../../errors/NotFoundError.js";
+
 
 import * as conversationTurnService
     from "../conversation-turn/conversation-turn.service.js";
 
+
 import { SubmitAnswerDto }
     from "./interview-engine.dto.js";
+
 
 import { generateAnswerEvaluation }
     from "../answer-evaluation/answer-evaluation.agent.js";
 
+
 import * as interviewSessionService
     from "../interview-session/session.service.js";
 
-import { generateInterviewReasoning }
-    from "../interview-reasoning/reasoning.agent.js";
 
 import * as interviewSessionRepository
     from "../interview-session/session.repository.js";
 
+
 import { generateInterviewQuestion }
     from "./interview-engine.agent.js";
+
 
 import { AnswerEvaluation }
     from "../answer-evaluation/answer-evaluation.types.js";
 
+
 import { fromPrismaJson }
     from "../../common/utils/prisma-json.js";
 
+
 import { CandidateAnalysis }
     from "../candidate-profile/candidate-profile.types.js";
+
 
 import {
     InterviewPlan,
     InterviewStage,
 } from "../interview-planner/planner.types.js";
 
+
 import {
     InterviewConfiguration,
     SessionProgress,
 } from "../interview-session/session.types.js";
 
-import { buildQuestionContext }
-    from "./interview-engine.context.js";
+
+import {
+    buildQuestionContext,
+    retrieveQuestionContextData,
+} from "./interview-engine.context.js";
+
 
 import {
     updateCandidateModel,
 } from "../interview-brain/candidate/candidate-model.service.js";
 
+
 import {
     selectNextClaim,
 } from "../interview-brain/claim-selection/claim-selection.service.js";
+
 
 import {
     decideNextAction,
 } from "../interview-brain/brain/interview-brain.service.js";
 
+
 import {
     applyInterviewDecision,
 } from "../interview-brain/state/interview-state.service.js";
+
 
 import {
     InterviewDecision,
 } from "../interview-brain/brain/interview-decision.types.js";
 
+
 import {
     ClaimAssessment,
 } from "../interview-brain/claims/claim-assessment.types.js";
+
 
 import {
     createClaimAssessment,
 } from "../interview-brain/claims/claim-assessment.service.js";
 
+
 import {
     ResumeClaim,
 } from "../interview-brain/claims/resume-claim.types.js";
+
 
 import {
     InterviewState,
 } from "../interview-brain/state/interview-state.types.js";
 
+
 import {
     CandidateModel,
 } from "../interview-brain/candidate/candidate-model.types.js";
+
 
 import {
     InterviewReasoning,
 } from "../interview-reasoning/reasoning.types.js";
 
+
 import {
     DEFAULT_INTERVIEW_REASONING,
 } from "../interview-reasoning/default-reasoning.js";
+
 
 import {
     InvestigationIntent,
 } from "../interview-brain/intent/investigation-intent.types.js";
 
+
 import {
     buildInvestigationIntent,
 } from "../interview-brain/intent/investigation-intent.builder.js";
+
 
 import {
     validateInvestigationIntent,
 } from "../interview-brain/intent/investigation-intent.validator.js";
 
 
+
 /*
-|--------------------------------------------------------------------------
-| Helper: Generate Question
-|--------------------------------------------------------------------------
-*/
+ * |--------------------------------------------------------------------------
+ * | Helper: Generate Question
+ * |--------------------------------------------------------------------------
+ *
+ * IMPORTANT:
+ *
+ * The question context is now built by the caller.
+ *
+ * This helper no longer performs:
+ *
+ * - embedding generation
+ * - vector search
+ * - conversation-history query
+ *
+ * The caller passes the already-built InterviewContext.
+ */
+
+
+/*
+ * |--------------------------------------------------------------------------
+ * | Helper: Generate Question
+ * |--------------------------------------------------------------------------
+ */
 
 const generateQuestion = async (params: {
-    interviewSessionId: string;
-    sequenceNumber: number;
 
-    resumeId: string;
+    interviewSessionId:
+        string;
 
-    candidateProfile: CandidateAnalysis;
+    sequenceNumber:
+        number;
 
-    interviewConfiguration: InterviewConfiguration;
+    interviewContext:
+        Awaited<
+            ReturnType<
+                typeof buildQuestionContext
+            >
+        >;
 
-    interviewPlan: InterviewPlan;
+    claim:
+        ResumeClaim;
 
-    progress: SessionProgress;
+    assessment:
+        ClaimAssessment;
 
-    claim: ResumeClaim;
+    decision:
+        InterviewDecision;
 
-    assessment: ClaimAssessment;
+    interviewState:
+        InterviewState;
 
-    decision: InterviewDecision;
+    reasoning:
+        InterviewReasoning;
 
-    interviewState: InterviewState;
+    investigationIntent:
+        InvestigationIntent;
 
-    reasoning: InterviewReasoning;
-
-    investigationIntent: InvestigationIntent;
 }) => {
 
-    const interviewContext =
-        await buildQuestionContext({
 
-            interviewSessionId:
-                params.interviewSessionId,
-
-            resumeId:
-                params.resumeId,
-
-            candidateProfile:
-                params.candidateProfile,
-
-            interviewConfiguration:
-                params.interviewConfiguration,
-
-            interviewPlan:
-                params.interviewPlan,
-
-            progress:
-                params.progress,
-
-            claim:
-                params.claim,
-        });
-
+    /*
+     * ============================================================
+     * Generate Question
+     * ============================================================
+     *
+     * Question context has already been constructed by the caller.
+     *
+     * Do NOT call buildQuestionContext() here.
+     */
 
     const question =
         await generateInterviewQuestion({
 
-            interviewContext,
+            interviewContext:
+                params.interviewContext,
 
             reasoning:
                 params.reasoning,
@@ -211,6 +261,13 @@ const generateQuestion = async (params: {
                 params.investigationIntent,
         });
 
+
+
+    /*
+     * ============================================================
+     * Create Conversation Turn
+     * ============================================================
+     */
 
     const conversationTurn =
         await conversationTurnService
@@ -236,22 +293,27 @@ const generateQuestion = async (params: {
             });
 
 
+
     return {
+
         question,
+
         conversationTurn,
     };
 };
 
 
+
 /*
-|--------------------------------------------------------------------------
-| Start Interview
-|--------------------------------------------------------------------------
-*/
+ * |--------------------------------------------------------------------------
+ * | Start Interview
+ * |--------------------------------------------------------------------------
+ */
 
 export const startInterview = async (
     sessionId: string
 ) => {
+
 
     const session =
         await interviewSessionRepository
@@ -260,12 +322,14 @@ export const startInterview = async (
             );
 
 
+
     if (!session) {
 
         throw new NotFoundError(
             `Interview session ${sessionId} was not found`
         );
     }
+
 
 
     if (
@@ -279,6 +343,7 @@ export const startInterview = async (
     }
 
 
+
     const candidateProfile =
         fromPrismaJson<CandidateAnalysis>(
             session
@@ -287,10 +352,12 @@ export const startInterview = async (
         );
 
 
+
     const configuration =
         fromPrismaJson<InterviewConfiguration>(
             session.interviewConfiguration
         );
+
 
 
     const interviewPlan =
@@ -299,15 +366,18 @@ export const startInterview = async (
         );
 
 
+
     let progress =
         fromPrismaJson<SessionProgress>(
             session.sessionProgress
         );
 
 
+
     const candidateModel:
         CandidateModel =
         progress.candidateModel;
+
 
 
     if (!candidateModel) {
@@ -316,6 +386,7 @@ export const startInterview = async (
             "Interview session does not contain a Candidate Model."
         );
     }
+
 
 
     if (
@@ -329,10 +400,12 @@ export const startInterview = async (
     }
 
 
+
     let firstStageIndex = 0;
 
     let firstStage:
         InterviewStage | undefined;
+
 
 
     /*
@@ -352,9 +425,11 @@ export const startInterview = async (
             ];
 
 
+
         if (!candidateStage) {
             break;
         }
+
 
 
         const stageClaimIds =
@@ -372,6 +447,7 @@ export const startInterview = async (
                 );
 
 
+
         if (
             stageClaimIds.length > 0
         ) {
@@ -383,13 +459,16 @@ export const startInterview = async (
         }
 
 
+
         console.log(
             `Skipping planner stage "${candidateStage.topic}" because it contains no valid resume claims.`
         );
 
 
+
         firstStageIndex++;
     }
+
 
 
     /*
@@ -404,6 +483,7 @@ export const startInterview = async (
             "Unable to start interview: no planner stage contains valid resume claims."
         );
     }
+
 
 
     /*
@@ -425,6 +505,7 @@ export const startInterview = async (
                             claim.id === claimId
                     )
             );
+
 
 
     /*
@@ -465,6 +546,7 @@ export const startInterview = async (
         });
 
 
+
     if (!selection.claim) {
 
         throw new Error(
@@ -473,9 +555,11 @@ export const startInterview = async (
     }
 
 
+
     const firstClaim:
         ResumeClaim =
         selection.claim;
+
 
 
     /*
@@ -571,6 +655,7 @@ export const startInterview = async (
     };
 
 
+
     /*
      * ============================================================
      * 9. Get first claim assessment
@@ -586,12 +671,14 @@ export const startInterview = async (
         );
 
 
+
     if (!firstAssessment) {
 
         throw new Error(
             `No assessment found for claim ${firstClaim.id}`
         );
     }
+
 
 
     /*
@@ -612,6 +699,7 @@ export const startInterview = async (
         reason:
             `Begin investigation of resume claim "${firstClaim.title}".`,
     };
+
 
 
     /*
@@ -636,11 +724,13 @@ export const startInterview = async (
     };
 
 
+
     await interviewSessionService
         .updateSessionProgress(
             session.id,
             progress
         );
+
 
 
     /*
@@ -655,6 +745,7 @@ export const startInterview = async (
                 claimProgress.claimId ===
                 firstClaim.id
         );
+
 
 
     const initialInvestigationIntent =
@@ -672,19 +763,98 @@ export const startInterview = async (
         );
 
 
+
     validateInvestigationIntent(
         initialInvestigationIntent
     );
 
 
+
     /*
      * ============================================================
-     * 13. Generate first question
+     * 13. Retrieve Initial Question Context Data
+     * ============================================================
+     *
+     * This performs the expensive work once:
+     *
+     * - embedding generation
+     * - vector search
+     * - conversation history query
+     */
+
+    const initialContextStart =
+        performance.now();
+
+
+    const initialContextData =
+        await retrieveQuestionContextData({
+
+            interviewSessionId:
+                session.id,
+
+            resumeId:
+                session.resumeId,
+
+            interviewPlan,
+
+            progress,
+
+            claim:
+                firstClaim,
+        });
+
+
+    console.log(
+        `[InterviewTiming] Retrieve initial question context data: ${(performance.now() - initialContextStart).toFixed(0)}ms`
+    );
+
+
+
+    /*
+     * ============================================================
+     * 14. Build Initial Interview Context
+     * ============================================================
+     *
+     * This is cheap.
+     *
+     * The expensive retrieval work has already been completed.
+     */
+
+    const initialInterviewContext =
+        buildQuestionContext({
+
+            interviewSessionId:
+                session.id,
+
+            resumeId:
+                session.resumeId,
+
+            candidateProfile,
+
+            interviewConfiguration:
+                configuration,
+
+            interviewPlan,
+
+            progress,
+
+            claim:
+                firstClaim,
+
+            ...initialContextData,
+        });
+
+
+
+    /*
+     * ============================================================
+     * 15. Generate First Question
      * ============================================================
      */
 
     const {
-        question, conversationTurn
+        question,
+        conversationTurn,
     } = await generateQuestion({
 
         interviewSessionId:
@@ -693,17 +863,8 @@ export const startInterview = async (
         sequenceNumber:
             1,
 
-        resumeId:
-            session.resumeId,
-
-        candidateProfile,
-
-        interviewConfiguration:
-            configuration,
-
-        interviewPlan,
-
-        progress,
+        interviewContext:
+            initialInterviewContext,
 
         claim:
             firstClaim,
@@ -724,9 +885,10 @@ export const startInterview = async (
     });
 
 
+
     /*
      * ============================================================
-     * 14. Activate interview
+     * 16. Activate interview
      * ============================================================
      */
 
@@ -743,9 +905,10 @@ export const startInterview = async (
         );
 
 
+
     /*
      * ============================================================
-     * 15. Return first question
+     * 17. Return first question
      * ============================================================
      */
 
@@ -756,24 +919,32 @@ export const startInterview = async (
 
         question,
 
-        turnId: conversationTurn.id
+        turnId:
+            conversationTurn.id,
     };
 };
 
 
+
 /*
-|--------------------------------------------------------------------------
-| Submit Answer
-|--------------------------------------------------------------------------
-*/
+ * |--------------------------------------------------------------------------
+ * | Submit Answer
+ * |--------------------------------------------------------------------------
+ */
 
 export const submitAnswer = async (
     data: SubmitAnswerDto
 ) => {
 
+
+    const totalStart =
+        performance.now();
+
+
+
     /*
      * ============================================================
-     * 1. Load Session
+     * 1. Load session
      * ============================================================
      */
 
@@ -784,12 +955,14 @@ export const submitAnswer = async (
             );
 
 
+
     if (!session) {
 
         throw new NotFoundError(
             `Interview session ${data.sessionId} was not found.`
         );
     }
+
 
 
     if (
@@ -801,6 +974,7 @@ export const submitAnswer = async (
             `Interview session ${data.sessionId} is not active.`
         );
     }
+
 
 
     /*
@@ -815,16 +989,19 @@ export const submitAnswer = async (
         );
 
 
+
     const interviewPlan =
         fromPrismaJson<InterviewPlan>(
             session.interviewPlan
         );
 
 
+
     const progress =
         fromPrismaJson<SessionProgress>(
             session.sessionProgress
         );
+
 
 
     /*
@@ -840,12 +1017,14 @@ export const submitAnswer = async (
         ];
 
 
+
     if (!currentStage) {
 
         throw new Error(
             `Interview stage ${progress.currentStageIndex} was not found.`
         );
     }
+
 
 
     /*
@@ -857,6 +1036,7 @@ export const submitAnswer = async (
     const interviewState:
         InterviewState =
         progress.interviewState;
+
 
 
     /*
@@ -871,12 +1051,14 @@ export const submitAnswer = async (
         interviewState.currentClaimId;
 
 
+
     if (!answeredClaimId) {
 
         throw new Error(
             "Interview Brain has no current claim to evaluate."
         );
     }
+
 
 
     /*
@@ -897,12 +1079,14 @@ export const submitAnswer = async (
             );
 
 
+
     if (!currentClaim) {
 
         throw new Error(
             `Current claim ${answeredClaimId} was not found in Candidate Model.`
         );
     }
+
 
 
     /*
@@ -912,51 +1096,56 @@ export const submitAnswer = async (
      */
 
     const conversationTurn =
-    await conversationTurnService
-        .getConversationTurnById(
-            data.turnId
+        await conversationTurnService
+            .getConversationTurnById(
+                data.turnId
+            );
+
+
+
+    if (!conversationTurn) {
+
+        throw new NotFoundError(
+            `Conversation turn "${data.turnId}" was not found.`
         );
+    }
 
 
-if (!conversationTurn) {
 
-    throw new NotFoundError(
-        `Conversation turn "${data.turnId}" was not found.`
-    );
-}
+    /*
+     * The turn must belong to this interview session.
+     */
 
+    if (
+        conversationTurn.interviewSessionId !==
+        session.id
+    ) {
 
-/*
- * The turn must belong to this interview session.
- */
-
-if (
-    conversationTurn.interviewSessionId !==
-    session.id
-) {
-
-    throw new Error(
-        `Conversation turn "${data.turnId}" does not belong to interview session "${session.id}".`
-    );
-}
+        throw new Error(
+            `Conversation turn "${data.turnId}" does not belong to interview session "${session.id}".`
+        );
+    }
 
 
-/*
- * A turn may only be answered once.
- *
- * This prevents duplicate voice/text submissions from
- * processing the same question twice.
- */
 
-if (
-    conversationTurn.status !==
-    ConversationTurnStatus.PENDING
-) {
+    /*
+     * A turn may only be answered once.
+     *
+     * This prevents duplicate voice/text submissions from
+     * processing the same question twice.
+     */
 
-    throw new Error(
-        `Conversation turn "${data.turnId}" has already been processed.`
-    );
-}
+    if (
+        conversationTurn.status !==
+        ConversationTurnStatus.PENDING
+    ) {
+
+        throw new Error(
+            `Conversation turn "${data.turnId}" has already been processed.`
+        );
+    }
+
+
 
     /*
      * ============================================================
@@ -972,6 +1161,7 @@ if (
             : null;
 
 
+
     if (!previousInvestigationIntent) {
 
         throw new Error(
@@ -980,11 +1170,17 @@ if (
     }
 
 
+
     /*
      * ============================================================
-     * 8. Save Candidate Answer
+     * 8. Save Answer
      * ============================================================
      */
+
+    const saveAnswerStart =
+        performance.now();
+
+
 
     const updatedConversationTurn =
         await conversationTurnService
@@ -994,11 +1190,23 @@ if (
             );
 
 
+
+    console.log(
+        `[InterviewTiming] Save answer: ${(performance.now() - saveAnswerStart).toFixed(0)}ms`
+    );
+
+
+
     /*
      * ============================================================
      * 9. Evaluate Answer
      * ============================================================
      */
+
+    const evaluationStart =
+        performance.now();
+
+
 
     const evaluation:
         AnswerEvaluation =
@@ -1021,6 +1229,13 @@ if (
         });
 
 
+
+    console.log(
+        `[InterviewTiming] Answer evaluation: ${(performance.now() - evaluationStart).toFixed(0)}ms`
+    );
+
+
+
     await conversationTurnService
         .saveEvaluation(
             updatedConversationTurn.id,
@@ -1028,12 +1243,11 @@ if (
         );
 
 
+
     /*
      * ============================================================
      * 10. Create Investigation Attempt
      * ============================================================
-     *
-     * This represents the question that was just answered.
      */
 
     const investigationAttempt =
@@ -1059,6 +1273,7 @@ if (
 
             evaluation,
         });
+
 
 
     /*
@@ -1092,6 +1307,7 @@ if (
         );
 
 
+
     /*
      * ============================================================
      * 12. Update Claim Progress
@@ -1105,6 +1321,7 @@ if (
         );
 
 
+
     if (
         evaluation.score < 5
     ) {
@@ -1115,6 +1332,7 @@ if (
                 currentClaim.id
             );
     }
+
 
 
     /*
@@ -1131,6 +1349,7 @@ if (
             previousInvestigationIntent.claimId,
             previousInvestigationIntent.investigationArea
         );
+
 
 
     /*
@@ -1153,6 +1372,7 @@ if (
         });
 
 
+
     /*
      * ============================================================
      * 14. Update Candidate Model
@@ -1167,6 +1387,7 @@ if (
 
             assessment
         );
+
 
 
     /*
@@ -1194,6 +1415,7 @@ if (
     };
 
 
+
     /*
      * ============================================================
      * 16. Create Progress Before Brain Decision
@@ -1211,6 +1433,7 @@ if (
         interviewState:
             stateBeforeDecision,
     };
+
 
 
     /*
@@ -1242,6 +1465,7 @@ if (
         });
 
 
+
     /*
      * ============================================================
      * 18. Apply Brain Decision
@@ -1256,6 +1480,7 @@ if (
 
             decision
         );
+
 
 
     /*
@@ -1291,6 +1516,7 @@ if (
         };
 
 
+
         await interviewSessionService
             .updateSessionProgress(
                 session.id,
@@ -1298,10 +1524,12 @@ if (
             );
 
 
+
         await interviewSessionService
             .completeInterview(
                 session.id
             );
+
 
 
         return {
@@ -1321,6 +1549,7 @@ if (
     }
 
 
+
     /*
      * ============================================================
      * 20. Determine Next Stage
@@ -1332,9 +1561,11 @@ if (
         progress.currentStageIndex;
 
 
+
     let nextInterviewState:
         InterviewState =
         updatedInterviewState;
+
 
 
     if (
@@ -1346,12 +1577,15 @@ if (
             progress.currentStageIndex + 1;
 
 
+
         let nextStage:
             InterviewStage | undefined;
 
 
+
         let nextStageClaimIds:
             string[] = [];
+
 
 
         while (
@@ -1365,12 +1599,14 @@ if (
                 ];
 
 
+
             if (!candidateStage) {
 
                 nextStageIndex++;
 
                 continue;
             }
+
 
 
             const candidateStageClaimIds =
@@ -1391,6 +1627,7 @@ if (
                     );
 
 
+
             if (
                 candidateStageClaimIds.length === 0
             ) {
@@ -1400,22 +1637,27 @@ if (
                 );
 
 
+
                 nextStageIndex++;
 
                 continue;
             }
 
 
+
             nextStage =
                 candidateStage;
+
 
 
             nextStageClaimIds =
                 candidateStageClaimIds;
 
 
+
             break;
         }
+
 
 
         /*
@@ -1448,6 +1690,7 @@ if (
             };
 
 
+
             await interviewSessionService
                 .updateSessionProgress(
                     session.id,
@@ -1455,10 +1698,12 @@ if (
                 );
 
 
+
             await interviewSessionService
                 .completeInterview(
                     session.id
                 );
+
 
 
             return {
@@ -1476,6 +1721,7 @@ if (
                     finishedProgress,
             };
         }
+
 
 
         /*
@@ -1516,6 +1762,7 @@ if (
             });
 
 
+
         /*
          * ==========================================================
          * Defensive fallback
@@ -1528,12 +1775,15 @@ if (
                 nextStageIndex + 1;
 
 
+
             let fallbackStage:
                 InterviewStage | undefined;
 
 
+
             let fallbackClaimIds:
                 string[] = [];
+
 
 
             while (
@@ -1547,12 +1797,14 @@ if (
                     ];
 
 
+
                 if (!candidateStage) {
 
                     fallbackStageIndex++;
 
                     continue;
                 }
+
 
 
                 const candidateClaimIds =
@@ -1573,6 +1825,7 @@ if (
                         );
 
 
+
                 if (
                     candidateClaimIds.length === 0
                 ) {
@@ -1581,6 +1834,7 @@ if (
 
                     continue;
                 }
+
 
 
                 const fallbackSelection =
@@ -1618,6 +1872,7 @@ if (
                     });
 
 
+
                 if (
                     fallbackSelection.claim
                 ) {
@@ -1626,20 +1881,25 @@ if (
                         candidateStage;
 
 
+
                     fallbackClaimIds =
                         candidateClaimIds;
+
 
 
                     nextStageIndex =
                         fallbackStageIndex;
 
 
+
                     break;
                 }
 
 
+
                 fallbackStageIndex++;
             }
+
 
 
             /*
@@ -1672,6 +1932,7 @@ if (
                 };
 
 
+
                 await interviewSessionService
                     .updateSessionProgress(
                         session.id,
@@ -1679,10 +1940,12 @@ if (
                     );
 
 
+
                 await interviewSessionService
                     .completeInterview(
                         session.id
                     );
+
 
 
                 return {
@@ -1702,13 +1965,16 @@ if (
             }
 
 
+
             nextStage =
                 fallbackStage;
+
 
 
             nextStageClaimIds =
                 fallbackClaimIds;
         }
+
 
 
         /*
@@ -1749,6 +2015,7 @@ if (
             });
 
 
+
         if (!selectedNextClaim.claim) {
 
             throw new Error(
@@ -1757,9 +2024,11 @@ if (
         }
 
 
+
         const nextStageClaim:
             ResumeClaim =
             selectedNextClaim.claim;
+
 
 
         /*
@@ -1772,6 +2041,7 @@ if (
                     claimId !==
                     nextStageClaim.id
             );
+
 
 
         /*
@@ -1798,6 +2068,7 @@ if (
                 updatedInterviewState.completedClaimIds,
         };
     }
+
 
 
     /*
@@ -1828,6 +2099,7 @@ if (
     };
 
 
+
     /*
      * ============================================================
      * 22. Determine Next Claim
@@ -1839,12 +2111,14 @@ if (
         nextInterviewState.currentClaimId;
 
 
+
     if (!nextClaimId) {
 
         throw new Error(
             "Brain decision produced no current claim."
         );
     }
+
 
 
     /*
@@ -1864,12 +2138,14 @@ if (
             );
 
 
+
     if (!nextClaim) {
 
         throw new Error(
             `Next claim ${nextClaimId} was not found.`
         );
     }
+
 
 
     /*
@@ -1889,12 +2165,14 @@ if (
             );
 
 
+
     if (!nextAssessment) {
 
         throw new Error(
             `No assessment found for claim ${nextClaim.id}`
         );
     }
+
 
 
     /*
@@ -1911,14 +2189,65 @@ if (
         );
 
 
+
     /*
      * ============================================================
-     * 26. Build Question Context
+     * 26. Retrieve Question Context Data
      * ============================================================
+     *
+     * This is the expensive portion:
+     *
+     * - embedding generation
+     * - vector search
+     * - conversation history query
+     *
+     * It is performed exactly once.
+     *
+     * The resulting data is reused after the Investigation Intent
+     * and final InterviewState are constructed.
+     */
+
+    const contextStart =
+        performance.now();
+
+
+
+    const questionContextData =
+        await retrieveQuestionContextData({
+
+            interviewSessionId:
+                session.id,
+
+            resumeId:
+                session.resumeId,
+
+            interviewPlan,
+
+            progress:
+                updatedProgress,
+
+            claim:
+                nextClaim,
+        });
+
+
+
+    console.log(
+        `[InterviewTiming] Retrieve question context data: ${(performance.now() - contextStart).toFixed(0)}ms`
+    );
+
+
+
+    /*
+     * ============================================================
+     * 27. Build Interview Context For Deterministic Reasoning
+     * ============================================================
+     *
+     * This is now cheap.
      */
 
     const interviewContext =
-        await buildQuestionContext({
+        buildQuestionContext({
 
             interviewSessionId:
                 session.id,
@@ -1939,17 +2268,26 @@ if (
 
             claim:
                 nextClaim,
+
+            ...questionContextData,
         });
+
 
 
     /*
      * ============================================================
-     * 27. Generate Interview Reasoning
+     * 28. Generate Deterministic Interview Reasoning
      * ============================================================
      */
 
-    const reasoning =
-        await generateInterviewReasoning({
+    const reasoningStart =
+        performance.now();
+
+
+
+    const reasoning:
+        InterviewReasoning =
+        buildDeterministicReasoning({
 
             interviewContext,
 
@@ -1965,9 +2303,16 @@ if (
         });
 
 
+
+    console.log(
+        `[InterviewTiming] Deterministic reasoning: ${(performance.now() - reasoningStart).toFixed(0)}ms`
+    );
+
+
+
     /*
      * ============================================================
-     * 28. Build Investigation Intent
+     * 29. Build Investigation Intent
      * ============================================================
      */
 
@@ -1979,7 +2324,9 @@ if (
         );
 
 
-    const investigationIntent =
+
+    const investigationIntent:
+        InvestigationIntent =
         buildInvestigationIntent(
 
             decision,
@@ -1994,14 +2341,16 @@ if (
         );
 
 
+
     validateInvestigationIntent(
         investigationIntent
     );
 
 
+
     /*
      * ============================================================
-     * 29. Sync Conversation State With Next Investigation
+     * 30. Sync Conversation State With Next Investigation
      * ============================================================
      *
      * updateConversationState() describes the answer that was
@@ -2027,9 +2376,10 @@ if (
     };
 
 
+
     /*
      * ============================================================
-     * 30. Final Interview State
+     * 31. Final Interview State
      * ============================================================
      */
 
@@ -2042,9 +2392,10 @@ if (
     };
 
 
+
     /*
      * ============================================================
-     * 31. Create Final Progress
+     * 32. Create Final Progress
      * ============================================================
      */
 
@@ -2058,9 +2409,10 @@ if (
     };
 
 
+
     /*
      * ============================================================
-     * 32. Persist Final State
+     * 33. Persist Final State
      * ============================================================
      */
 
@@ -2071,14 +2423,71 @@ if (
         );
 
 
+
     /*
      * ============================================================
-     * 33. Generate Next Question
+     * 34. Build Final Question Context
+     * ============================================================
+     *
+     * IMPORTANT:
+     *
+     * We do NOT call retrieveQuestionContextData() again.
+     *
+     * We reuse:
+     *
+     * - questionContextData.resumeContext
+     * - questionContextData.conversationHistory
+     *
+     * and only rebuild the lightweight InterviewContext object
+     * with the latest finalProgress / nextInterviewState.
+     */
+
+    const finalInterviewContext =
+        buildQuestionContext({
+
+            interviewSessionId:
+                session.id,
+
+            resumeId:
+                session.resumeId,
+
+            candidateProfile:
+                candidateProfile,
+
+            interviewConfiguration:
+                configuration,
+
+            interviewPlan,
+
+            progress:
+                finalProgress,
+
+            claim:
+                nextClaim,
+
+            ...questionContextData,
+        });
+
+
+
+    /*
+     * ============================================================
+     * 35. Generate Next Question
      * ============================================================
      */
 
+    const questionStart =
+        performance.now();
+
+
+
     const {
-        question: nextQuestion, conversationTurn: nextConversationTurn
+        question:
+            nextQuestion,
+
+        conversationTurn:
+            nextConversationTurn,
+
     } = await generateQuestion({
 
         interviewSessionId:
@@ -2087,19 +2496,8 @@ if (
         sequenceNumber:
             conversationTurn.sequenceNumber + 1,
 
-        resumeId:
-            session.resumeId,
-
-        candidateProfile:
-            candidateProfile,
-
-        interviewConfiguration:
-            configuration,
-
-        interviewPlan,
-
-        progress:
-            finalProgress,
+        interviewContext:
+            finalInterviewContext,
 
         claim:
             nextClaim,
@@ -2118,11 +2516,24 @@ if (
     });
 
 
+
+    console.log(
+        `[InterviewTiming] Generate next question: ${(performance.now() - questionStart).toFixed(0)}ms`
+    );
+
+
+
     /*
      * ============================================================
-     * 34. Return Result
+     * 36. Return Result
      * ============================================================
      */
+
+    console.log(
+        `[InterviewTiming] TOTAL submitAnswer: ${(performance.now() - totalStart).toFixed(0)}ms`
+    );
+
+
 
     return {
 
@@ -2134,7 +2545,8 @@ if (
 
         nextQuestion,
 
-        nextTurnId: nextConversationTurn.id,
+        nextTurnId:
+            nextConversationTurn.id,
 
         progress:
             finalProgress,

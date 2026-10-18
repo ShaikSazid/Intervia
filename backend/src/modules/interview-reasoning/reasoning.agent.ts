@@ -48,6 +48,10 @@ export const generateInterviewReasoning = async (input: GenerateInterviewReasoni
         input.assessment,
     );
 
+    console.log(
+    `[InterviewTiming] Reasoning prompt chars: ${userPrompt.length}`
+);
+
     let lastError: unknown = null;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -64,6 +68,8 @@ export const generateInterviewReasoning = async (input: GenerateInterviewReasoni
                         MAX_ATTEMPTS,
                 }
             );
+
+            const llmStart = performance.now();
 
 
             const response =
@@ -101,6 +107,10 @@ export const generateInterviewReasoning = async (input: GenerateInterviewReasoni
                             "interview-reasoning"
                         ),
                 });
+
+                console.log(
+    `[InterviewTiming] Interview reasoning Gemini request (attempt ${attempt}): ${(performance.now() - llmStart).toFixed(0)}ms`
+);
 
 
             const reasoning =

@@ -4,7 +4,7 @@ import { z } from "zod";
 export const interviewReasoningSchema = z.object({
 
     reasoning:
-        z.string(),
+        z.string().max(500),
 
     objective:
         z.string(),

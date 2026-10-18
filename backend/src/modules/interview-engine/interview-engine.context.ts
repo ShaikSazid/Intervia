@@ -36,7 +36,8 @@ interface BuildContextParams {
 
     resumeId: string;
 
-    candidateProfile: CandidateAnalysis;
+    candidateProfile:
+        CandidateAnalysis;
 
     interviewConfiguration:
         InterviewConfiguration;
@@ -56,9 +57,46 @@ interface BuildContextParams {
 }
 
 
-export const buildQuestionContext = async (
-    params: BuildContextParams
-) => {
+/*
+ * ================================================================
+ * Retrieved Context Data
+ * ================================================================
+ *
+ * These are the expensive pieces of work:
+ *
+ * 1. Resume retrieval
+ * 2. Conversation-history database query
+ *
+ * We keep them separate from InterviewContext construction so
+ * they can be reused later in the same submitAnswer() request.
+ */
+
+export interface QuestionContextData {
+
+    resumeContext: string;
+
+    conversationHistory: ReturnType<
+        typeof mapConversationMemory
+    >;
+}
+
+
+/*
+ * ================================================================
+ * Retrieve Question Context Data
+ * ================================================================
+ */
+
+export const retrieveQuestionContextData = async (
+    params: Pick<
+        BuildContextParams,
+        | "interviewSessionId"
+        | "resumeId"
+        | "interviewPlan"
+        | "progress"
+        | "claim"
+    >
+): Promise<QuestionContextData> => {
 
     /*
      * ============================================================
@@ -84,14 +122,6 @@ export const buildQuestionContext = async (
      * ============================================================
      * 2. Build claim-driven retrieval query
      * ============================================================
-     *
-     * The claim is the most important retrieval signal.
-     *
-     * The stage provides additional context.
-     *
-     * We deliberately do NOT use the entire candidate profile
-     * as the retrieval query because that would make retrieval
-     * too broad.
      */
 
     const retrievalQuery = `
@@ -136,11 +166,6 @@ this claim and its implementation.
      * ============================================================
      * 4. Build evidence context
      * ============================================================
-     *
-     * Keep chunk boundaries visible to the LLM.
-     *
-     * This makes it clearer that these are retrieved pieces
-     * of the actual resume rather than generated information.
      */
 
     const resumeContext =
@@ -149,8 +174,8 @@ this claim and its implementation.
             ? "No directly relevant resume evidence was retrieved."
 
             : retrievalResult.chunks
-                  .map(
-                      (chunk, index) => `
+                .map(
+                    (chunk, index) => `
 --- Resume Evidence ${index + 1} ---
 
 Chunk Index:
@@ -162,20 +187,14 @@ ${chunk.similarity.toFixed(3)}
 Content:
 ${chunk.content}
 `
-                  )
-                  .join(
-                      "\n"
-                  );
+                )
+                .join("\n");
 
 
     /*
      * ============================================================
      * 5. Load conversation history
      * ============================================================
-     *
-     * This is needed to prevent repetitive questions and allows
-     * the reasoning/question agents to understand what has
-     * already been investigated.
      */
 
     const conversationTurns =
@@ -197,11 +216,34 @@ ${chunk.content}
         );
 
 
-    /*
-     * ============================================================
-     * 7. Build final Interview Context
-     * ============================================================
-     */
+    return {
+        resumeContext,
+        conversationHistory,
+    };
+};
+
+
+/*
+ * ================================================================
+ * Build Interview Context
+ * ================================================================
+ *
+ * This operation is intentionally cheap.
+ *
+ * It does NOT:
+ * - call embeddings
+ * - query pgvector
+ * - query conversation history
+ *
+ * It only combines already available data.
+ */
+
+export const buildQuestionContext = (
+    params: Omit<
+        BuildContextParams,
+        never
+    > & QuestionContextData
+) => {
 
     return buildInterviewContext({
 
@@ -217,8 +259,10 @@ ${chunk.content}
         sessionProgress:
             params.progress,
 
-        resumeContext,
+        resumeContext:
+            params.resumeContext,
 
-        conversationHistory,
+        conversationHistory:
+            params.conversationHistory,
     });
 };
