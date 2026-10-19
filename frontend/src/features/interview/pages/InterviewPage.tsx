@@ -13,74 +13,90 @@ interface InterviewLocationState {
   mode?: InterviewMode;
 }
 
+/* ---------- shared look ---------- */
+
+const cardClass =
+  "relative w-full border border-white/10 bg-[#14151B]/90 text-[#EDEAE4] backdrop-blur-xl rounded-3xl shadow-2xl shadow-black/60 overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-[#E5B858]/70 before:to-transparent";
+
+const primaryBtn =
+  "rounded-full bg-gradient-to-r from-[#E5B858] via-[#F3C86A] to-[#CCA043] bg-[length:200%_100%] hover:bg-[position:100%_0] text-[#0F1014] font-semibold shadow-lg shadow-[#E5B858]/30 hover:brightness-110 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-40 disabled:hover:translate-y-0 focus-visible:ring-2 focus-visible:ring-[#E5B858]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0D0E12]";
+
+const softBtn =
+  "rounded-full border border-[#2A2B35] bg-transparent text-[#A2A4AD] hover:bg-white/5 hover:text-white transition-all";
+
 function PageChrome({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-screen w-full text-[#EDEAE4] antialiased selection:bg-[#C9A24B]/30 selection:text-[#C9A24B] font-sans">
+    <div className="relative h-dvh w-full overflow-hidden bg-[#0D0E12] text-[#EDEAE4] antialiased font-body selection:bg-[#E5B858]/20">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@1,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,500&display=swap');
 
-        .font-display {
-          font-family: 'Newsreader', ui-serif, Georgia, serif;
-          font-style: italic;
+        .font-display { font-family: 'Playfair Display', Georgia, serif; }
+        .font-body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+
+        @keyframes floatA {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(40px, 30px) scale(1.1); }
         }
-
-        .font-body {
-          font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+        @keyframes floatB {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-40px, -30px) scale(1.12); }
         }
+        .blob-a { animation: floatA 14s ease-in-out infinite; }
+        .blob-b { animation: floatB 17s ease-in-out infinite; }
 
-        .font-data {
-          font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+        @keyframes breathe {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.06); }
         }
+        .orb-breathe { animation: breathe 3.2s ease-in-out infinite; }
 
-        @keyframes eqBar {
-          0%, 100% {
-            transform: scaleY(0.25);
-          }
-          50% {
-            transform: scaleY(1);
-          }
+        @keyframes waveBars {
+          0%, 100% { transform: scaleY(0.25); }
+          50% { transform: scaleY(1); }
         }
-
-        .eq-bar {
-          animation: eqBar 1s ease-in-out infinite;
+        .wave-bar {
+          animation: waveBars 0.85s ease-in-out infinite;
           transform-origin: center;
         }
 
-        @keyframes breathe {
-          0%, 100% {
-            transform: scale(1);
-            opacity: 0.55;
-          }
-          50% {
-            transform: scale(1.15);
-            opacity: 1;
-          }
+        @keyframes rippleRing {
+          0% { transform: scale(0.9); opacity: 0.55; }
+          100% { transform: scale(1.7); opacity: 0; }
         }
+        .ripple-effect { animation: rippleRing 2.4s ease-out infinite; }
 
-        .breathe-ring {
-          animation: breathe 1.8s ease-in-out infinite;
+        @keyframes popIn {
+          0% { opacity: 0; transform: translateY(10px) scale(0.98); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
         }
+        .pop-in { animation: popIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
-        @keyframes spinSlow {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        .spin-slow {
-          animation: spinSlow 1.4s linear infinite;
+        @media (prefers-reduced-motion: reduce) {
+          .blob-a, .blob-b, .orb-breathe, .wave-bar, .ripple-effect, .pop-in { animation: none; }
         }
       `}</style>
 
-      <div className="fixed inset-0 -z-10 bg-[#111214]">
-        <div className="absolute -top-40 left-1/2 h-[520px] w-[850px] -translate-x-1/2 rounded-full bg-[#C9A24B]/[0.05] blur-3xl" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1c1d21_1px,transparent_1px),linear-gradient(to_bottom,#1c1d21_1px,transparent_1px)] bg-[size:3rem_3rem] opacity-20 [mask-image:radial-gradient(ellipse_60%_45%_at_50%_30%,#000_50%,transparent_100%)]" />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="blob-a absolute -top-32 -left-24 h-[420px] w-[420px] rounded-full bg-[#C9A24B]/20 blur-[90px]" />
+        <div className="blob-b absolute -bottom-32 -right-24 h-[460px] w-[460px] rounded-full bg-[#3B664B]/30 blur-[100px]" />
+        <div className="absolute top-1/3 right-1/4 h-64 w-64 rounded-full bg-[#C9A24B]/10 blur-[90px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:28px_28px] opacity-40 [mask-image:radial-gradient(ellipse_60%_50%_at_50%_40%,#000_60%,transparent_100%)]" />
       </div>
 
-      {children}
+      <div className="relative h-full w-full">{children}</div>
+    </div>
+  );
+}
+
+function LogoMark({ className = "size-9" }: { className?: string }) {
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F3C86A] via-[#E5B858] to-[#CCA043] shadow-md shadow-[#E5B858]/30 ring-1 ring-white/20 ${className}`}
+    >
+      <svg viewBox="0 0 24 24" className="size-[62%]" fill="none" stroke="#0F1014" strokeWidth={2} strokeLinecap="round">
+        <path d="M4.5 10.5v3M8.25 8v8M12 11v8.5M15.75 8v8M19.5 10.5v3" />
+        <circle cx="12" cy="6.2" r="1.35" fill="#0F1014" stroke="none" />
+      </svg>
     </div>
   );
 }
@@ -88,79 +104,136 @@ function PageChrome({ children }: { children: React.ReactNode }) {
 function BrandMark() {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="relative flex h-6 w-6 items-center justify-center rounded-sm border border-[#C9A24B]/50">
-        <div className="absolute inset-[2px] border border-[#C9A24B]/30 rounded-[1px]" />
-        <span className="font-data text-[9px] text-[#C9A24B]">IA</span>
-      </div>
-      <span className="font-body text-sm font-medium text-[#EDEAE4]">
-        AI Interviewer
+      <LogoMark />
+      <span className="font-display text-lg font-semibold tracking-tight text-[#F7F5F0]">
+        Intervia
       </span>
     </div>
   );
 }
+
+function Centered({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex h-full items-center justify-center p-4 sm:p-6">
+      {children}
+    </div>
+  );
+}
+
+function StatusIcon({
+  tone,
+  children,
+}: {
+  tone: "error" | "success" | "brand";
+  children: React.ReactNode;
+}) {
+  const tones = {
+    error: "bg-[#D85D52]/10 text-[#D85D52]",
+    success: "bg-[#54BD78]/10 text-[#54BD78]",
+    brand: "bg-[#E5B858]/10 text-[#E5B858]",
+  };
+
+  return (
+    <div
+      className={`mx-auto flex size-16 items-center justify-center rounded-3xl ${tones[tone]}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+const MicIcon = ({ className = "size-8" }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+  </svg>
+);
+
+const WarnIcon = () => (
+  <svg className="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg className="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M4.5 12.75l6 6 9-13.5" />
+  </svg>
+);
 
 function VoiceIndicator({
   status,
 }: {
   status: "IDLE" | "SPEAKING" | "LISTENING" | "PROCESSING" | "ERROR";
 }) {
-  const ringClass =
-    status === "SPEAKING"
-      ? "bg-[#C9A24B]/15 ring-8 ring-[#C9A24B]/10"
-      : status === "LISTENING"
-      ? "bg-[#5E8869]/15 ring-8 ring-[#5E8869]/10"
-      : status === "PROCESSING"
-      ? "bg-[#C9A24B]/10 ring-8 ring-[#C9A24B]/5"
-      : status === "ERROR"
-      ? "bg-[#C0665A]/10 ring-8 ring-[#C0665A]/10"
-      : "bg-[#C9A24B]/10 ring-8 ring-[#C9A24B]/5";
+  const isSpeaking = status === "SPEAKING";
+  const isListening = status === "LISTENING";
+  const isProcessing = status === "PROCESSING";
+  const isError = status === "ERROR";
 
-  const barColor = status === "LISTENING" ? "bg-[#5E8869]" : "bg-[#C9A24B]";
+  const glowColor = isListening
+    ? "from-[#4E9B66] to-[#2E5E3E]"
+    : isError
+    ? "from-[#D85D52] to-[#7B2E27]"
+    : "from-[#E5B858] to-[#99772B]";
+
+  const barColor = isListening ? "bg-[#54BD78]" : "bg-[#F3C86A]";
+  const ringColor = isListening ? "text-[#54BD78]" : "text-[#E5B858]";
 
   return (
-    <div
-      className={`relative flex size-28 items-center justify-center rounded-full transition-all duration-500 ${
-        status === "LISTENING" ? "breathe-ring" : ""
-      } ${ringClass}`}
-    >
-      {(status === "SPEAKING" || status === "LISTENING") && (
-        <div className="flex items-end justify-center gap-1.5 h-12">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <span
-              key={i}
-              className={`eq-bar w-1.5 rounded-full ${barColor}`}
-              style={{
-                height: "100%",
-                animationDelay: `${i * 110}ms`,
-              }}
-            />
-          ))}
-        </div>
-      )}
-
-      {status === "PROCESSING" && (
-        <div className="spin-slow h-14 w-14 rounded-full border-2 border-[#C9A24B]/20 border-t-[#C9A24B]" />
-      )}
-
-      {status === "ERROR" && (
-        <svg
-          className="h-10 w-10 text-[#C0665A]"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+    <div className="relative flex items-center justify-center">
+      {(isSpeaking || isListening) && (
+        <>
+          <div
+            className={`ripple-effect absolute size-24 sm:size-28 rounded-full border-2 border-current ${ringColor}`}
           />
-        </svg>
+          <div
+            className={`ripple-effect absolute size-24 sm:size-28 rounded-full border-2 border-current [animation-delay:1.1s] ${ringColor}`}
+          />
+        </>
       )}
 
-      {status === "IDLE" && (
-        <span className="h-3 w-3 rounded-full bg-[#C9A24B]" />
-      )}
+      <div
+        className={`orb-breathe relative flex size-24 sm:size-28 items-center justify-center rounded-full border border-white/10 bg-[#15161C] shadow-2xl transition-all duration-700 ${
+          isListening
+            ? "shadow-[#54BD78]/40 ring-4 ring-[#54BD78]/25"
+            : isSpeaking
+            ? "shadow-[#E5B858]/40 ring-4 ring-[#E5B858]/25"
+            : isError
+            ? "shadow-[#D85D52]/30 ring-4 ring-[#D85D52]/20"
+            : isProcessing
+            ? "ring-2 ring-white/10"
+            : "shadow-[#E5B858]/20 ring-2 ring-[#E5B858]/20"
+        }`}
+      >
+        <div
+          className={`absolute inset-1 rounded-full bg-gradient-to-tr ${glowColor} opacity-30 blur-md`}
+        />
+
+        {(isSpeaking || isListening) && (
+          <div className="relative z-10 flex h-12 items-center justify-center gap-1.5">
+            {[45, 80, 100, 65, 90, 50, 75].map((height, i) => (
+              <span
+                key={i}
+                className={`wave-bar w-1.5 rounded-full ${barColor}`}
+                style={{
+                  height: `${height}%`,
+                  animationDelay: `${i * 90}ms`,
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {isProcessing && (
+          <div className="relative z-10 size-10 animate-spin rounded-full border-2 border-white/10 border-t-[#E5B858]" />
+        )}
+
+        {isError && <span className="relative z-10 text-[#D85D52]"><WarnIcon /></span>}
+
+        {status === "IDLE" && (
+          <MicIcon className="relative z-10 size-10 text-[#E5B858]" />
+        )}
+      </div>
     </div>
   );
 }
@@ -212,44 +285,32 @@ export default function InterviewPage() {
   if (!sessionId || !initialQuestion || !initialTurnId) {
     return (
       <PageChrome>
-        <div className="flex min-h-screen items-center justify-center p-6">
-          <Card className="w-full max-w-md border-[#26272C] bg-[#16171A] rounded-lg overflow-hidden">
-            <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#C0665A]/70 to-transparent" />
-            <CardContent className="space-y-5 p-8 text-center font-body">
-              <div className="mx-auto flex size-14 items-center justify-center rounded-full border border-[#C0665A]/30 bg-[#C0665A]/10 text-[#C0665A]">
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
-                  />
-                </svg>
+        <Centered>
+          <Card className={`${cardClass} max-w-md pop-in`}>
+            <CardContent className="space-y-5 p-8 text-center">
+              <StatusIcon tone="error">
+                <WarnIcon />
+              </StatusIcon>
+
+              <div>
+                <h1 className="font-display text-2xl font-semibold">
+                  We lost this session
+                </h1>
+                <p className="mt-2 text-sm text-[#8B8D97] leading-relaxed">
+                  This interview could not be restored. Head back to the
+                  dashboard to start a fresh one.
+                </p>
               </div>
 
-              <h1 className="font-display text-xl font-medium text-[#F5F3EE]">
-                Interview session unavailable
-              </h1>
-
-              <p className="text-sm text-[#8B8A85] leading-relaxed">
-                This interview session could not be restored. Please start a
-                new interview from the dashboard.
-              </p>
-
               <Button
-                className="w-full rounded-md bg-[#C9A24B] hover:bg-[#DAB768] text-[#111214] font-semibold"
+                className={`w-full h-11 ${primaryBtn}`}
                 onClick={() => navigate("/dashboard", { replace: true })}
               >
-                Back to Dashboard
+                Back to dashboard
               </Button>
             </CardContent>
           </Card>
-        </div>
+        </Centered>
       </PageChrome>
     );
   }
@@ -308,6 +369,9 @@ function InterviewSession({
   );
 
   const [voiceStarted, setVoiceStarted] = useState(false);
+  // Transcript value at the moment the current answer started. Anything equal
+  // to this is a leftover from the previous answer and must not be shown.
+  const [baselineTranscript, setBaselineTranscript] = useState("");
 
   const handleVoiceTranscript = useCallback(
     async (transcript: string) => {
@@ -331,6 +395,11 @@ function InterviewSession({
     audioConfig: audioConfig,
     onTranscript: handleVoiceTranscript,
   });
+
+  const handleListen = useCallback(() => {
+    setBaselineTranscript(transcript);
+    startListening();
+  }, [transcript, startListening]);
 
   useEffect(() => {
     if (mode !== "VOICE" || !voiceStarted) {
@@ -371,50 +440,32 @@ function InterviewSession({
   if (isCompleted) {
     return (
       <PageChrome>
-        <div className="flex min-h-screen items-center justify-center p-6">
-          <Card className="w-full max-w-md border-[#26272C] bg-[#16171A] rounded-lg overflow-hidden">
-            <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#5E8869]/70 to-transparent" />
-            <CardContent className="space-y-6 p-8 text-center font-body">
-              <div className="mx-auto flex size-16 items-center justify-center rounded-full border border-[#3F5B44] bg-[#3F5B44]/10 text-[#5E8869]">
-                <svg
-                  className="h-7 w-7"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.75}
-                    d="M4.5 12.75l6 6 9-13.5"
-                  />
-                </svg>
-              </div>
+        <Centered>
+          <Card className={`${cardClass} max-w-md pop-in`}>
+            <CardContent className="space-y-5 p-8 text-center">
+              <StatusIcon tone="success">
+                <CheckIcon />
+              </StatusIcon>
 
               <div>
-                <h1 className="font-display text-2xl font-medium text-[#F5F3EE]">
-                  Interview complete
+                <h1 className="font-display text-2xl font-semibold">
+                  Great job, you're done!
                 </h1>
-                <p className="mt-2 text-sm text-[#8B8A85]">
-                  Your interview session has ended.
+                <p className="mt-2 text-sm text-[#8B8D97] leading-relaxed">
+                  Your answers have been reviewed. Your scores and feedback are
+                  waiting on your dashboard.
                 </p>
               </div>
 
-              <div className="mx-auto inline-flex -rotate-6 rounded-sm border-2 border-[#3F5B44] px-3 py-1.5">
-                <span className="font-data text-[11px] tracking-[0.15em] text-[#5E8869] font-medium uppercase">
-                  Session Logged
-                </span>
-              </div>
-
               <Button
-                className="w-full rounded-md bg-[#C9A24B] hover:bg-[#DAB768] text-[#111214] font-semibold"
+                className={`w-full h-11 ${primaryBtn}`}
                 onClick={() => navigate("/dashboard", { replace: true })}
               >
-                Back to Dashboard
+                See my results
               </Button>
             </CardContent>
           </Card>
-        </div>
+        </Centered>
       </PageChrome>
     );
   }
@@ -436,12 +487,13 @@ function InterviewSession({
         status={voiceStatus}
         transcript={transcript}
         interimTranscript={interimTranscript}
+        baselineTranscript={baselineTranscript}
         isSupported={isSupported}
         error={voiceError ?? interviewError}
         voiceStarted={voiceStarted}
         isSubmitting={isSubmitting}
         onBegin={handleBeginVoice}
-        onListen={startListening}
+        onListen={handleListen}
         onStopListening={stopListening}
         onStopSpeaking={stopSpeaking}
         onEnd={handleEndInterview}
@@ -451,101 +503,76 @@ function InterviewSession({
 
   return (
     <PageChrome>
-      <div className="min-h-screen p-4 sm:p-6">
-        <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-5xl items-center">
-          <Card className="w-full overflow-hidden border-[#26272C] bg-[#16171A] rounded-lg">
-            <CardContent className="p-0">
-              <div className="flex min-h-[520px] flex-col font-body">
-                <header className="flex items-center justify-between border-b border-[#26272C] px-5 py-4 sm:px-7">
-                  <BrandMark />
-                  <div className="rounded-full border border-[#3A3B41] bg-[#1D1E23] px-3 py-1.5 font-data text-[10px] tracking-wide text-[#8B8A85] uppercase">
-                    Video mode
-                  </div>
-                </header>
+      <div className="flex h-full flex-col">
+        <header className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-5 py-3.5 sm:px-8">
+          <BrandMark />
+          <div className="flex items-center gap-2 rounded-full border border-[#E5B858]/30 bg-[#E5B858]/10 px-3 py-1 text-xs font-medium text-[#FFD375]">
+            <span className="size-2 rounded-full bg-[#E5B858]" />
+            Typing mode
+          </div>
+        </header>
 
-                <main className="flex flex-1 flex-col justify-center px-5 py-10 sm:px-10">
-                  <div className="relative mx-auto flex h-64 w-full max-w-2xl items-center justify-center rounded-2xl border border-[#26272C] bg-[#111214]">
-                    <span className="pointer-events-none absolute left-4 top-4 h-4 w-4 border-l border-t border-[#C9A24B]/40" />
-                    <span className="pointer-events-none absolute right-4 top-4 h-4 w-4 border-r border-t border-[#C9A24B]/40" />
-                    <span className="pointer-events-none absolute bottom-4 left-4 h-4 w-4 border-b border-l border-[#C9A24B]/40" />
-                    <span className="pointer-events-none absolute bottom-4 right-4 h-4 w-4 border-b border-r border-[#C9A24B]/40" />
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6">
+          <div
+            key={currentQuestion.question}
+            className="pop-in m-auto w-full max-w-2xl py-4 text-center"
+          >
+            <p className="flex items-center justify-center gap-3 text-xs font-semibold tracking-wide text-[#E5B858]"><span className="h-px w-8 bg-gradient-to-r from-transparent to-[#E5B858]/60" />Your question<span className="h-px w-8 bg-gradient-to-l from-transparent to-[#E5B858]/60" /></p>
+            <h1 className="mt-3 font-display text-lg font-medium leading-relaxed text-[#F7F5F0] sm:text-2xl">
+              {currentQuestion.question}
+            </h1>
+          </div>
+        </main>
 
-                    <div className="text-center">
-                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-[#26272C] bg-[#16171A] text-[#C9A24B]">
-                        <svg
-                          className="h-6 w-6"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                            d="M15.75 10.5l4.72-4.72a.75.75 0 01.28-.72V18.87a.75.75 0 01-.28-.72L15.75 13.5M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z"
-                          />
-                        </svg>
-                      </div>
-                      <p className="mt-3 font-data text-[10.5px] tracking-wide text-[#5C5B57] uppercase">
-                        Camera implementation comes next
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mx-auto mt-8 w-full max-w-3xl text-center">
-                    <p className="mb-3 font-data text-[10px] tracking-[0.15em] text-[#5C5B57] uppercase">
-                      AI Interviewer
-                    </p>
-                    <h1 className="text-xl font-semibold leading-relaxed text-[#F5F3EE] sm:text-2xl">
-                      {currentQuestion.question}
-                    </h1>
-                  </div>
-
-                  <div className="mx-auto mt-10 w-full max-w-2xl">
-                    <textarea
-                      value={answer}
-                      onChange={(event) => setAnswer(event.target.value)}
-                      placeholder="Type your answer here for now..."
-                      disabled={isSubmitting}
-                      className="min-h-36 w-full resize-none rounded-xl border border-[#26272C] bg-[#111214] p-4 text-sm text-[#EDEAE4] placeholder:text-[#4A4B51] outline-none focus:border-[#C9A24B]"
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" && !event.shiftKey) {
-                          event.preventDefault();
-                          void handleTextSubmit();
-                        }
-                      }}
-                    />
-
-                    {interviewError && (
-                      <p className="mt-4 text-sm text-[#D89A8D]">
-                        {interviewError}
-                      </p>
-                    )}
-
-                    <div className="mt-5 flex justify-between gap-3">
-                      <Button
-                        variant="destructive"
-                        disabled={isSubmitting}
-                        onClick={handleEndInterview}
-                        className="rounded-md bg-[#C0665A] hover:bg-[#B75B50]"
-                      >
-                        End Interview
-                      </Button>
-
-                      <Button
-                        disabled={!answer.trim() || isSubmitting}
-                        onClick={handleTextSubmit}
-                        className="rounded-md bg-[#C9A24B] hover:bg-[#DAB768] text-[#111214] font-semibold"
-                      >
-                        {isSubmitting ? "Thinking..." : "Send Answer"}
-                      </Button>
-                    </div>
-                  </div>
-                </main>
+        <footer className="shrink-0 px-5 pb-5 sm:px-8">
+          <div className="mx-auto w-full max-w-3xl">
+            {interviewError && (
+              <div className="mb-3 rounded-xl border border-[#D85D52]/30 bg-[#D85D52]/10 p-3 text-xs text-[#E8928A]">
+                {interviewError}
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            )}
+
+            <div className="rounded-3xl border border-white/10 bg-[#14151B]/90 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl transition-all focus-within:border-[#E5B858]/60 focus-within:ring-4 focus-within:ring-[#E5B858]/10">
+              <textarea
+                value={answer}
+                onChange={(event) => setAnswer(event.target.value)}
+                placeholder="Take your time and type your answer..."
+                disabled={isSubmitting}
+                className="h-24 w-full resize-none rounded-2xl bg-transparent p-3 text-sm leading-relaxed text-[#EDEAE4] outline-none placeholder:text-[#5B5D68] sm:h-32 sm:text-base"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void handleTextSubmit();
+                  }
+                }}
+              />
+
+              <div className="flex items-center justify-between gap-3 px-1 pt-1">
+                <Button
+                  variant="ghost"
+                  disabled={isSubmitting}
+                  onClick={handleEndInterview}
+                  className="h-10 rounded-full px-4 text-sm text-[#8B8D97] hover:bg-white/5 hover:text-white"
+                >
+                  Exit
+                </Button>
+
+                <div className="flex items-center gap-3">
+                  <span className="hidden text-xs text-[#5B5D68] sm:block">
+                    Enter to send · Shift+Enter for a new line
+                  </span>
+                  <Button
+                    disabled={!answer.trim() || isSubmitting}
+                    onClick={handleTextSubmit}
+                    className={`h-11 px-7 ${primaryBtn}`}
+                  >
+                    {isSubmitting ? "Sending..." : "Send answer"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </footer>
       </div>
     </PageChrome>
   );
@@ -810,13 +837,6 @@ function AudioSetup({
         throw new Error("The selected microphone could not be activated.");
       }
 
-      console.log("[AudioSetup] Selected microphone test:", {
-        label: track.label,
-        deviceId: track.getSettings().deviceId,
-        muted: track.muted,
-        readyState: track.readyState,
-      });
-
       const AudioContextClass =
         window.AudioContext ??
         (
@@ -874,12 +894,6 @@ function AudioSetup({
         await new Promise<void>((resolve) => setTimeout(resolve, 50));
       }
 
-      console.log("[AudioSetup] Microphone level:", {
-        device: track.label,
-        peak,
-        rms,
-      });
-
       if (peak < 0.001 && rms < 0.0003) {
         const settings = track.getSettings();
 
@@ -900,7 +914,7 @@ function AudioSetup({
 
       setMicrophoneReady(true);
       setNotice(
-        `Microphone ready: ${friendlyDeviceLabel(track.label, "input")}.`
+        `Microphone detected successfully: ${friendlyDeviceLabel(track.label, "input")}.`
       );
     } catch (testError) {
       console.error("[AudioSetup] Microphone test failed:", testError);
@@ -950,332 +964,219 @@ function AudioSetup({
     });
   };
 
+  const profileCard = (
+    choice: AudioSetupChoice,
+    title: string,
+    text: string,
+    icon: React.ReactNode
+  ) => {
+    const active = selectedSetup === choice;
+
+    return (
+      <button
+        type="button"
+        onClick={() => applySetupChoice(choice)}
+        className={`flex flex-1 items-center gap-3 rounded-2xl border-2 p-3.5 text-left transition-all ${
+          active
+            ? "border-[#E5B858] bg-[#E5B858]/10 shadow-md shadow-[#E5B858]/15 -translate-y-0.5"
+            : "border-transparent bg-[#1A1C24] hover:border-white/20 hover:-translate-y-0.5"
+        }`}
+      >
+        <div
+          className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${
+            active ? "bg-[#E5B858] text-[#0F1014]" : "bg-[#E5B858]/10 text-[#E5B858]"
+          }`}
+        >
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold">{title}</h2>
+          <p className="text-xs text-[#8B8D97] leading-snug">{text}</p>
+        </div>
+      </button>
+    );
+  };
+
   return (
     <PageChrome>
-      <div className="min-h-screen p-4 sm:p-6">
-        <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-5xl items-center justify-center">
-          <Card className="w-full overflow-hidden border-[#26272C] bg-[#16171A] rounded-lg">
-            <CardContent className="p-0">
-              <div className="flex flex-col font-body">
-                <header className="border-b border-[#26272C] px-5 py-4 sm:px-7">
-                  <BrandMark />
-                </header>
+      <Centered>
+        <Card className={`${cardClass} max-w-3xl max-h-full flex flex-col pop-in`}>
+          <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+            <header className="flex items-center justify-between px-6 py-4">
+              <BrandMark />
+              <span className="rounded-full bg-[#E5B858]/10 px-3 py-1 text-xs font-medium text-[#E5B858]">
+                Quick sound check
+              </span>
+            </header>
 
-                <main className="px-5 py-5 sm:px-7 sm:py-6">
-                  <div className="mx-auto w-full max-w-5xl">
-                    <p className="font-data text-[10px] tracking-[0.2em] text-[#C9A24B] uppercase">
-                      Before you begin
-                    </p>
-
-                    <h1 className="mt-2 font-display text-[2.5rem] font-medium text-[#F5F3EE] sm:text-[2.75rem]">
-                      How will you take the interview?
-                    </h1>
-
-                    <p className="mt-3 max-w-4xl text-sm leading-6 text-[#8B8A85] sm:text-base">
-                      Choose from the audio devices currently available on your
-                      computer. We hide Windows duplicate aliases so you only see
-                      meaningful devices.
-                    </p>
-
-                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      {bluetoothAvailable && (
-                        <button
-                          type="button"
-                          onClick={() => applySetupChoice("BLUETOOTH")}
-                          className={`rounded-2xl border p-5 text-left transition-all ${
-                            selectedSetup === "BLUETOOTH"
-                              ? "border-[#C9A24B] bg-[#C9A24B]/[0.08] shadow-[0_0_0_1px_rgba(201,162,75,0.18)]"
-                              : "border-[#26272C] bg-[#111214] hover:border-[#3A3B41]"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#3A3B41] bg-[#16171A] text-[#C9A24B]">
-                              <AudioSetupBluetoothIcon />
-                            </div>
-
-                            {selectedSetup === "BLUETOOTH" && (
-                              <span className="rounded-full border border-[#C9A24B]/40 px-3 py-1 font-data text-[10px] tracking-[0.14em] text-[#C9A24B] uppercase">
-                                Selected
-                              </span>
-                            )}
-                          </div>
-
-                          <h2 className="mt-3 text-lg font-semibold text-[#F5F3EE]">
-                            Bluetooth earbuds
-                          </h2>
-
-                          <p className="mt-1.5 text-sm leading-5 text-[#8B8A85]">
-                            Use your available wireless earbuds or Bluetooth
-                            headset.
-                          </p>
-                        </button>
-                      )}
-
-                      {wiredAvailable && (
-                        <button
-                          type="button"
-                          onClick={() => applySetupChoice("WIRED")}
-                          className={`rounded-2xl border p-5 text-left transition-all ${
-                            selectedSetup === "WIRED"
-                              ? "border-[#C9A24B] bg-[#C9A24B]/[0.08] shadow-[0_0_0_1px_rgba(201,162,75,0.18)]"
-                              : "border-[#26272C] bg-[#111214] hover:border-[#3A3B41]"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#3A3B41] bg-[#16171A] text-[#C9A24B]">
-                              <AudioSetupWiredIcon />
-                            </div>
-
-                            {selectedSetup === "WIRED" && (
-                              <span className="rounded-full border border-[#C9A24B]/40 px-3 py-1 font-data text-[10px] tracking-[0.14em] text-[#C9A24B] uppercase">
-                                Selected
-                              </span>
-                            )}
-                          </div>
-
-                          <h2 className="mt-3 text-lg font-semibold text-[#F5F3EE]">
-                            Wired headset
-                          </h2>
-
-                          <p className="mt-1.5 text-sm leading-5 text-[#8B8A85]">
-                            Use a currently connected wired headset or
-                            earphones.
-                          </p>
-                        </button>
-                      )}
-
-                      {computerAudioAvailable && (
-                        <button
-                          type="button"
-                          onClick={() => applySetupChoice("COMPUTER")}
-                          className={`rounded-2xl border p-5 text-left transition-all ${
-                            selectedSetup === "COMPUTER"
-                              ? "border-[#C9A24B] bg-[#C9A24B]/[0.08] shadow-[0_0_0_1px_rgba(201,162,75,0.18)]"
-                              : "border-[#26272C] bg-[#111214] hover:border-[#3A3B41]"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#3A3B41] bg-[#16171A] text-[#C9A24B]">
-                              <AudioSetupComputerIcon />
-                            </div>
-
-                            {selectedSetup === "COMPUTER" && (
-                              <span className="rounded-full border border-[#C9A24B]/40 px-3 py-1 font-data text-[10px] tracking-[0.14em] text-[#C9A24B] uppercase">
-                                Selected
-                              </span>
-                            )}
-                          </div>
-
-                          <h2 className="mt-3 text-lg font-semibold text-[#F5F3EE]">
-                            Computer audio
-                          </h2>
-
-                          <p className="mt-1.5 text-sm leading-5 text-[#8B8A85]">
-                            Use your computer microphone and speakers.
-                          </p>
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="mt-5">
-                      <div className="rounded-2xl border border-[#26272C] bg-[#111214] p-5">
-                        <div className="flex items-center justify-between gap-4">
-                          <div>
-                            <p className="font-data text-[10px] tracking-[0.15em] text-[#8B8A85] uppercase">
-                              Microphone
-                            </p>
-
-                            <p className="mt-1 text-sm text-[#F5F3EE]">
-                              {selectedSetup === "BLUETOOTH"
-                                ? "The microphone used for your answers."
-                                : selectedSetup === "WIRED"
-                                ? "The microphone used for your answers."
-                                : "Your computer microphone will record your answers."}
-                            </p>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => void loadDevices()}
-                            disabled={isLoading}
-                            className="text-xs text-[#C9A24B] transition-colors hover:text-[#DAB768] disabled:opacity-50"
-                          >
-                            Refresh
-                          </button>
-                        </div>
-
-                        <select
-                          value={selectedMicrophone}
-                          onChange={(event) => {
-                            setSelectedMicrophone(event.target.value);
-                            setMicrophoneReady(false);
-                            setError(null);
-                          }}
-                          disabled={isLoading || microphones.length === 0}
-                          className="mt-3 w-full rounded-lg border border-[#3A3B41] bg-[#16171A] px-4 py-3 text-sm text-[#F5F3EE] outline-none focus:border-[#C9A24B]"
-                        >
-                          {microphones.length === 0 ? (
-                            <option value="">No microphone available</option>
-                          ) : (
-                            microphones.map((device) => (
-                              <option
-                                key={device.deviceId}
-                                value={device.deviceId}
-                              >
-                                {device.label}
-                              </option>
-                            ))
-                          )}
-                        </select>
-
-                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-xs leading-5 text-[#8B8A85]">
-                            Say “I am ready for the interview” during the test.
-                          </p>
-
-                          <Button
-                            type="button"
-                            onClick={testMicrophone}
-                            disabled={isLoading || !selectedMicrophone}
-                            className="shrink-0 rounded-md bg-[#C9A24B] text-[#111214] hover:bg-[#DAB768]"
-                          >
-                            Test microphone
-                          </Button>
-                        </div>
-
-                        {microphoneReady && (
-                          <div className="mt-4 flex items-center gap-3 rounded-lg border border-[#3F5B44] bg-[#3F5B44]/10 px-4 py-3 text-sm text-[#7DB08B]">
-                            <span className="h-2.5 w-2.5 rounded-full bg-[#5E8869]" />
-                            Microphone is working.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {notice && (
-                      <div className="mt-5 rounded-lg border border-[#26272C] bg-[#111214] px-4 py-3 text-xs leading-5 text-[#8B8A85]">
-                        {notice}
-                      </div>
-                    )}
-
-                    {error && (
-                      <div className="mt-5 rounded-lg border border-[#C0665A]/30 bg-[#C0665A]/[0.08] px-4 py-3 text-sm leading-6 text-[#D89A8D]">
-                        {error}
-                      </div>
-                    )}
-
-                    <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          void onCancel();
-                        }}
-                        disabled={isLoading}
-                        className="border-[#3A3B41] bg-transparent text-[#B8B6B0] hover:bg-[#1A1B20] hover:text-[#F5F3EE]"
-                      >
-                        Back
-                      </Button>
-
-                      <Button
-                        type="button"
-                        onClick={handleContinue}
-                        disabled={
-                          isLoading ||
-                          !selectedMicrophone ||
-                          !microphoneReady
-                        }
-                        className="rounded-md bg-[#C9A24B] text-[#111214] font-semibold hover:bg-[#DAB768]"
-                      >
-                        Continue to interview
-                      </Button>
-                    </div>
-                  </div>
-                </main>
+            <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-6 sm:px-10">
+              <div>
+                <h1 className="font-display text-2xl sm:text-3xl font-semibold">
+                  How will you join today?
+                </h1>
+                <p className="mt-1 text-sm text-[#8B8D97]">
+                  Pick your setup, test your mic, and you're in.
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+
+              <div className="flex flex-col gap-2.5 sm:flex-row">
+                {bluetoothAvailable &&
+                  profileCard(
+                    "BLUETOOTH",
+                    "Wireless earbuds",
+                    "AirPods or any Bluetooth buds.",
+                    <AudioSetupBluetoothIcon />
+                  )}
+
+                {wiredAvailable &&
+                  profileCard(
+                    "WIRED",
+                    "Wired headset",
+                    "3.5mm or USB-C earphones.",
+                    <AudioSetupWiredIcon />
+                  )}
+
+                {computerAudioAvailable &&
+                  profileCard(
+                    "COMPUTER",
+                    "Built-in audio",
+                    "Laptop speakers and mic.",
+                    <AudioSetupComputerIcon />
+                  )}
+              </div>
+
+              <div className="rounded-2xl bg-[#0E0F14]/80 border border-white/5 p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold">Microphone</label>
+                  <button
+                    type="button"
+                    onClick={() => void loadDevices()}
+                    disabled={isLoading}
+                    className="text-xs font-semibold text-[#E5B858] hover:text-[#FFD375] disabled:opacity-40 transition-colors"
+                  >
+                    {isLoading ? "Refreshing..." : "Refresh list"}
+                  </button>
+                </div>
+
+                <select
+                  value={selectedMicrophone}
+                  onChange={(event) => {
+                    setSelectedMicrophone(event.target.value);
+                    setMicrophoneReady(false);
+                    setError(null);
+                  }}
+                  disabled={isLoading || microphones.length === 0}
+                  className="mt-2.5 w-full cursor-pointer rounded-xl border border-[#2A2B35] bg-[#0F1015] px-4 py-2.5 text-sm text-[#F7F5F0] [color-scheme:dark] outline-none focus:border-[#E5B858] focus:ring-4 focus:ring-[#E5B858]/10 transition-all"
+                >
+                  {microphones.length === 0 ? (
+                    <option value="">No microphone detected</option>
+                  ) : (
+                    microphones.map((device) => (
+                      <option key={device.deviceId} value={device.deviceId}>
+                        {device.label}
+                      </option>
+                    ))
+                  )}
+                </select>
+
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <p className="text-xs text-[#8B8D97]">
+                    Tap test and say a few words.
+                  </p>
+
+                  <Button
+                    type="button"
+                    onClick={testMicrophone}
+                    disabled={isLoading || !selectedMicrophone}
+                    className={`h-9 px-5 text-xs ${
+                      microphoneReady
+                        ? "rounded-full bg-[#54BD78] text-[#0F1014] hover:bg-[#6BCB8C]"
+                        : "rounded-full bg-white/10 text-[#EDEAE4] border border-white/10 hover:bg-white/15"
+                    }`}
+                  >
+                    {isLoading
+                      ? "Listening..."
+                      : microphoneReady
+                      ? "Sounds great"
+                      : "Test mic"}
+                  </Button>
+                </div>
+              </div>
+
+              {microphoneReady && (
+                <div className="flex items-center gap-2 rounded-xl bg-[#54BD78]/10 px-3.5 py-2 text-xs font-medium text-[#73CE92]">
+                  <span className="size-2 rounded-full bg-[#54BD78] animate-pulse" />
+                  Your mic is working perfectly.
+                </div>
+              )}
+
+              {notice && !microphoneReady && (
+                <div className="rounded-xl bg-white/5 p-3 text-xs text-[#A2A4AD]">
+                  {notice}
+                </div>
+              )}
+
+              {error && (
+                <div className="rounded-xl bg-[#D85D52]/10 p-3 text-xs text-[#E8928A]">
+                  {error}
+                </div>
+              )}
+
+              <div className="mt-auto flex items-center justify-between gap-3 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    void onCancel();
+                  }}
+                  disabled={isLoading}
+                  className={`h-11 px-5 ${softBtn}`}
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={handleContinue}
+                  disabled={isLoading || !selectedMicrophone || !microphoneReady}
+                  className={`h-11 px-7 ${primaryBtn}`}
+                >
+                  Enter interview room
+                </Button>
+              </div>
+            </main>
+          </CardContent>
+        </Card>
+      </Centered>
     </PageChrome>
   );
 }
 
 function AudioSetupBluetoothIcon() {
   return (
-    <svg
-      className="h-6 w-6"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={1.6}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M4.5 14.25v-2.5a7.5 7.5 0 0115 0v2.5"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M4.5 13.5H6a1.5 1.5 0 011.5 1.5v2A1.5 1.5 0 016 18.5H4.5a1.5 1.5 0 01-1.5-1.5v-2a1.5 1.5 0 011.5-1.5zm15 0H18a1.5 1.5 0 00-1.5 1.5v2a1.5 1.5 0 001.5 1.5h1.5a1.5 1.5 0 001.5-1.5v-2a1.5 1.5 0 00-1.5-1.5z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M9 19.5h2.5a2 2 0 002-2v-.25"
-      />
+    <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 14.25v-2.5a7.5 7.5 0 0115 0v2.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 13.5H6a1.5 1.5 0 011.5 1.5v2A1.5 1.5 0 016 18.5H4.5a1.5 1.5 0 01-1.5-1.5v-2a1.5 1.5 0 011.5-1.5zm15 0H18a1.5 1.5 0 00-1.5 1.5v2a1.5 1.5 0 001.5 1.5h1.5a1.5 1.5 0 001.5-1.5v-2a1.5 1.5 0 00-1.5-1.5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 19.5h2.5a2 2 0 002-2v-.25" />
     </svg>
   );
 }
 
 function AudioSetupWiredIcon() {
   return (
-    <svg
-      className="h-6 w-6"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={1.6}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M5 13.5V12a7 7 0 0114 0v1.5"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M5 13.5H6.25A1.25 1.25 0 017.5 14.75V17A1.25 1.25 0 016.25 18.25H5A1.25 1.25 0 013.75 17v-2.25A1.25 1.25 0 015 13.5zm14 0h-1.25a1.25 1.25 0 00-1.25 1.25V17a1.25 1.25 0 001.25 1.25H19A1.25 1.25 0 0020.25 17v-2.25A1.25 1.25 0 0019 13.5z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M14 18.25h1.25a1.75 1.75 0 011.75 1.75v.25"
-      />
+    <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13.5V12a7 7 0 0114 0v1.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13.5H6.25A1.25 1.25 0 017.5 14.75V17A1.25 1.25 0 016.25 18.25H5A1.25 1.25 0 013.75 17v-2.25A1.25 1.25 0 015 13.5zm14 0h-1.25a1.25 1.25 0 00-1.25 1.25V17a1.25 1.25 0 001.25 1.25H19A1.25 1.25 0 0020.25 17v-2.25A1.25 1.25 0 0019 13.5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14 18.25h1.25a1.75 1.75 0 011.75 1.75v.25" />
     </svg>
   );
 }
 
 function AudioSetupComputerIcon() {
   return (
-    <svg
-      className="h-6 w-6"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={1.6}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M5 6.75h14A1.5 1.5 0 0120.5 8.25v7.5A1.5 1.5 0 0119 17.25H5a1.5 1.5 0 01-1.5-1.5v-7.5A1.5 1.5 0 015 6.75z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M9 20.25h6M12 17.25v3"
-      />
+    <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 6.75h14A1.5 1.5 0 0120.5 8.25v7.5A1.5 1.5 0 0119 17.25H5a1.5 1.5 0 01-1.5-1.5v-7.5A1.5 1.5 0 015 6.75z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 20.25h6M12 17.25v3" />
     </svg>
   );
 }
@@ -1545,6 +1446,7 @@ interface VoiceInterviewUIProps {
   status: "IDLE" | "SPEAKING" | "LISTENING" | "PROCESSING" | "ERROR";
   transcript: string;
   interimTranscript: string;
+  baselineTranscript: string;
   isSupported: boolean;
   error: string | null;
   voiceStarted: boolean;
@@ -1562,6 +1464,7 @@ function VoiceInterviewUI({
   status,
   transcript,
   interimTranscript,
+  baselineTranscript,
   isSupported,
   error,
   voiceStarted,
@@ -1575,271 +1478,217 @@ function VoiceInterviewUI({
   if (!isSupported) {
     return (
       <PageChrome>
-        <div className="flex min-h-screen items-center justify-center p-6">
-          <Card className="w-full max-w-lg border-[#26272C] bg-[#16171A] rounded-lg overflow-hidden">
-            <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#C0665A]/70 to-transparent" />
-            <CardContent className="space-y-5 p-8 text-center font-body">
-              <div className="mx-auto flex size-14 items-center justify-center rounded-full border border-[#C0665A]/30 bg-[#C0665A]/10 text-[#C0665A]">
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
-                  />
-                </svg>
+        <Centered>
+          <Card className={`${cardClass} max-w-md pop-in`}>
+            <CardContent className="space-y-5 p-8 text-center">
+              <StatusIcon tone="error">
+                <MicIcon />
+              </StatusIcon>
+
+              <div>
+                <h1 className="font-display text-2xl font-semibold">
+                  Voice isn't available here
+                </h1>
+                <p className="mt-2 text-sm text-[#8B8D97] leading-relaxed">
+                  Your browser can't do speech recognition. Please open this
+                  page in Google Chrome or Microsoft Edge.
+                </p>
               </div>
-
-              <h1 className="font-display text-xl font-medium text-[#F5F3EE]">
-                Voice mode is unavailable
-              </h1>
-
-              <p className="text-sm leading-6 text-[#8B8A85]">
-                Your browser does not currently support the microphone recording
-                technology required for this voice interview.
-              </p>
 
               <Button
                 onClick={onEnd}
-                className="rounded-md bg-[#C9A24B] hover:bg-[#DAB768] text-[#111214] font-semibold"
+                className={`w-full h-11 ${primaryBtn}`}
               >
-                Back to Dashboard
+                Back to dashboard
               </Button>
             </CardContent>
           </Card>
-        </div>
+        </Centered>
       </PageChrome>
     );
   }
 
+  // Pre-session ready screen
   if (!voiceStarted) {
     return (
       <PageChrome>
-        <div className="min-h-screen p-4 sm:p-6">
-          <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-4xl items-center justify-center">
-            <Card className="w-full max-w-2xl border-[#26272C] bg-[#16171A] rounded-lg overflow-hidden">
-              <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#C9A24B]/70 to-transparent" />
-              <CardContent className="flex flex-col items-center gap-8 p-10 text-center font-body">
-                <div className="breathe-ring flex size-28 items-center justify-center rounded-full bg-[#C9A24B]/10 ring-8 ring-[#C9A24B]/[0.06]">
-                  <svg
-                    className="h-12 w-12 text-[#C9A24B]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
-                    />
-                  </svg>
+        <Centered>
+          <Card className={`${cardClass} max-w-md pop-in`}>
+            <CardContent className="flex flex-col items-center gap-6 p-8 sm:p-10 text-center">
+              <div className="relative">
+                <div className="ripple-effect absolute inset-0 rounded-full border-2 border-[#E5B858]/50" />
+                <div className="orb-breathe relative flex size-24 items-center justify-center rounded-full border border-[#E5B858]/40 bg-[#1E202B] text-[#E5B858] shadow-2xl shadow-[#E5B858]/25">
+                  <div className="absolute inset-2 rounded-full bg-gradient-to-b from-white/10 to-transparent" />
+                  <MicIcon className="relative size-10" />
                 </div>
+              </div>
 
-                <div className="space-y-3">
-                  <p className="font-data text-[10.5px] font-medium tracking-[0.2em] text-[#C9A24B] uppercase">
-                    Voice Interview
-                  </p>
+              <div>
+                <p className="mb-2 text-xs font-semibold text-[#E5B858]">Welcome to Intervia</p>
+                <h1 className="font-display text-3xl font-semibold">
+                  Ready when you are
+                </h1>
+                <p className="mt-2.5 text-sm text-[#8B8D97] max-w-xs mx-auto leading-relaxed">
+                  Your interviewer will speak and you'll answer out loud. Find
+                  a quiet spot, take a breath, and begin.
+                </p>
+              </div>
 
-                  <h1 className="font-display text-2xl font-medium text-[#F5F3EE]">
-                    Your interviewer is ready
-                  </h1>
-
-                  <p className="text-sm leading-6 text-[#8B8A85]">
-                    Click below to begin the voice interview and allow
-                    microphone access.
-                  </p>
-                </div>
-
+              <div className="flex w-full max-w-xs flex-col gap-2">
                 <Button
                   size="lg"
                   onClick={onBegin}
-                  className="min-w-48 rounded-md bg-[#C9A24B] font-semibold text-[#111214] hover:bg-[#DAB768]"
+                  className={`h-12 w-full text-base ${primaryBtn}`}
                 >
-                  Begin Voice Interview
+                  Start interview
                 </Button>
 
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   onClick={onEnd}
-                  className="rounded-md border-[#26272C] bg-transparent text-[#B8B6B0] hover:bg-[#1A1B20] hover:text-[#F5F3EE]"
+                  className="h-10 rounded-full text-sm text-[#8B8D97] hover:bg-white/5 hover:text-white"
                 >
-                  Exit
+                  Not now
                 </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Centered>
       </PageChrome>
     );
   }
 
-  const statusLabel =
-    status === "SPEAKING"
-      ? "Interviewer speaking"
+  const isThinking = status === "PROCESSING" || (isSubmitting && status !== "ERROR");
+
+  // Only show live words while listening, and never a leftover from the
+  // previous answer.
+  const liveText =
+    status === "LISTENING"
+      ? interimTranscript ||
+        (transcript !== baselineTranscript ? transcript : "")
+      : "";
+
+  const captionText = isThinking
+    ? ""
+    : status === "LISTENING"
+    ? liveText
+    : status === "SPEAKING"
+    ? "Listen to the question, then tap Answer."
+    : "Tap Answer when you're ready to speak.";
+
+  const statusLabel = isThinking
+    ? "Thinking about your answer..."
+    : status === "SPEAKING"
+      ? "Interviewer is speaking"
       : status === "LISTENING"
-      ? "Listening"
-      : status === "PROCESSING"
-      ? "Analyzing your answer"
+      ? "Listening to you..."
       : status === "IDLE"
-      ? "Your turn"
-      : "Voice error";
+      ? "Your turn to speak"
+      : "Something went wrong with audio";
+
+  const statusBadgeStyle =
+    status === "LISTENING"
+      ? "border-[#54BD78]/30 bg-[#54BD78]/10 text-[#73CE92]"
+      : status === "ERROR"
+      ? "border-[#D85D52]/30 bg-[#D85D52]/10 text-[#E8928A]"
+      : "border-[#E5B858]/30 bg-[#E5B858]/10 text-[#FFD375]";
 
   return (
     <PageChrome>
-      <div className="min-h-screen p-4 sm:p-6">
-        <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-4xl items-center">
-          <Card className="w-full overflow-hidden border-[#26272C] bg-[#16171A] rounded-lg">
-            <CardContent className="p-0">
-              <div className="flex min-h-[520px] flex-col font-body">
-                <header className="flex items-center justify-between border-b border-[#26272C] px-5 py-4 sm:px-7">
-                  <div>
-                    <BrandMark />
-                    <p className="mt-0.5 pl-8 font-data text-[10px] tracking-[0.15em] text-[#5C5B57] uppercase">
-                      Voice Assessment
-                    </p>
-                  </div>
+      <div className="flex h-full flex-col">
+        <header className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-5 py-3.5 sm:px-8">
+          <BrandMark />
+          <div className="flex items-center gap-2 rounded-full border border-[#54BD78]/30 bg-[#54BD78]/10 px-3 py-1 text-xs font-medium text-[#73CE92]">
+            <span className="size-2 rounded-full bg-[#54BD78] animate-pulse" />
+            Live
+          </div>
+        </header>
 
-                  <div className="flex items-center gap-2 rounded-full border border-[#3F5B44] bg-[#3F5B44]/10 px-3 py-1.5 font-data text-[10px] tracking-wide text-[#5E8869] uppercase">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#5E8869]" />
-                    Live
-                  </div>
-                </header>
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6">
+          <div className="m-auto flex w-full max-w-2xl flex-col items-center gap-5 py-3 text-center">
+            <div key={question} className="pop-in">
+              <p className="flex items-center justify-center gap-3 text-xs font-semibold tracking-wide text-[#E5B858]"><span className="h-px w-8 bg-gradient-to-r from-transparent to-[#E5B858]/60" />Question<span className="h-px w-8 bg-gradient-to-l from-transparent to-[#E5B858]/60" /></p>
+              <h1 className="mt-3 font-display text-lg font-medium leading-relaxed text-[#F7F5F0] sm:text-2xl">
+                {question}
+              </h1>
+            </div>
 
-                <main className="flex flex-1 flex-col items-center justify-center px-5 py-6 sm:px-10">
-                  <VoiceIndicator status={status} />
+            <div className="shrink-0 py-2 [@media(max-height:760px)]:-my-3 [@media(max-height:760px)]:scale-75">
+              <VoiceIndicator status={status} />
+            </div>
 
-                  <p
-                    className={`mt-4 font-data text-[10px] tracking-[0.2em] uppercase ${
-                      status === "ERROR"
-                        ? "text-[#C0665A]"
-                        : status === "LISTENING"
-                        ? "text-[#5E8869]"
-                        : "text-[#C9A24B]"
-                    }`}
-                  >
-                    {statusLabel}
-                  </p>
+            <div
+              className={`mt-4 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors ${statusBadgeStyle}`}
+            >
+              <span className="size-1.5 rounded-full bg-current" />
+              {statusLabel}
+            </div>
 
-                  <div className="mt-5 w-full max-w-3xl text-center">
-                    <p className="mb-3 font-data text-[10px] tracking-[0.15em] text-[#5C5B57] uppercase">
-                      AI Interviewer
-                    </p>
-                    <h1 className="text-xl font-semibold leading-relaxed text-[#F5F3EE] sm:text-2xl">
-                      {question}
-                    </h1>
-                  </div>
+            <p
+              className={`max-h-20 min-h-6 max-w-xl overflow-y-auto rounded-2xl bg-white/[0.03] px-4 py-2 text-sm italic leading-relaxed text-[#A2A4AD] ${
+                captionText ? "" : "invisible"
+              }`}
+            >
+              {captionText}
+            </p>
 
-                  <div className="mt-5 w-full max-w-2xl rounded-xl border border-[#26272C] bg-[#111214] p-4">
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="font-data text-[9px] tracking-[0.15em] text-[#5C5B57] uppercase">
-                        Your answer
-                      </p>
-
-                      {status === "LISTENING" && (
-                        <span className="flex items-center gap-1">
-                          {[0, 1, 2].map((i) => (
-                            <span
-                              key={i}
-                              className="eq-bar w-0.5 rounded-full bg-[#5E8869]"
-                              style={{
-                                height: "10px",
-                                animationDelay: `${i * 120}ms`,
-                              }}
-                            />
-                          ))}
-                        </span>
-                      )}
-                    </div>
-
-                    <p className="min-h-12 text-sm leading-6 text-[#B8B6B0]">
-                      {interimTranscript ||
-                        transcript ||
-                        "Start speaking when you're ready..."}
-                    </p>
-                  </div>
-
-                  {error && (
-                    <div className="mt-3 w-full max-w-2xl rounded-lg border border-[#C0665A]/30 bg-[#C0665A]/[0.08] p-4 text-sm text-[#D89A8D]">
-                      {error}
-                    </div>
-                  )}
-
-                  <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-                    {status === "LISTENING" ? (
-                      <Button
-                        size="lg"
-                        onClick={onStopListening}
-                        className="min-w-44 rounded-md bg-[#C0665A] text-white hover:bg-[#B75B50]"
-                      >
-                        Stop Listening
-                      </Button>
-                    ) : status === "SPEAKING" ? (
-                      <Button
-                        size="lg"
-                        variant="outline"
-                        onClick={onStopSpeaking}
-                        className="min-w-44 rounded-md border-[#26272C] bg-transparent text-[#B8B6B0] hover:bg-[#1A1B20] hover:text-[#F5F3EE]"
-                      >
-                        Skip Voice
-                      </Button>
-                    ) : status === "PROCESSING" ? (
-                      <Button
-                        size="lg"
-                        disabled
-                        className="min-w-44 rounded-md bg-[#C9A24B]/40 text-[#111214]"
-                      >
-                        Thinking...
-                      </Button>
-                    ) : (
-                      <Button
-                        size="lg"
-                        onClick={onListen}
-                        disabled={isSubmitting || !turnId}
-                        className="min-w-44 gap-2 rounded-md bg-[#C9A24B] text-[#111214] hover:bg-[#DAB768] font-semibold"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                            d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
-                          />
-                        </svg>
-                        Answer
-                      </Button>
-                    )}
-
-                    <Button
-                      variant="destructive"
-                      onClick={onEnd}
-                      disabled={isSubmitting}
-                      className="rounded-md bg-[#C0665A] hover:bg-[#B75B50]"
-                    >
-                      End Interview
-                    </Button>
-                  </div>
-                </main>
-
-                <footer className="border-t border-[#26272C] px-5 py-4">
-                  <p className="text-center font-body text-xs text-[#5C5B57]">
-                    Speak naturally. The interviewer will adapt to your answer.
-                  </p>
-                </footer>
+            {error && (
+              <div className="w-full max-w-xl rounded-xl border border-[#D85D52]/30 bg-[#D85D52]/10 p-3 text-xs text-[#E8928A]">
+                {error}
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </div>
+        </main>
+
+        <footer className="shrink-0 px-5 pb-5 sm:pb-6">
+          <div className="mx-auto flex w-fit max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-white/10 bg-[#14151B]/85 p-2 shadow-2xl shadow-black/50 backdrop-blur-xl">
+            {status === "LISTENING" ? (
+              <Button
+                size="lg"
+                onClick={onStopListening}
+                className="h-12 min-w-44 rounded-full bg-gradient-to-r from-[#E86D63] to-[#D85D52] font-semibold text-white shadow-lg shadow-[#D85D52]/30 transition-all hover:-translate-y-0.5 hover:brightness-110"
+              >
+                I'm done
+              </Button>
+            ) : status === "SPEAKING" ? (
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={onStopSpeaking}
+                className="h-12 min-w-44 rounded-full border-white/10 bg-white/5 text-[#EDEAE4] hover:bg-white/10 hover:text-white"
+              >
+                Skip question audio
+              </Button>
+            ) : status === "PROCESSING" ? (
+              <Button
+                size="lg"
+                disabled
+                className="h-12 min-w-44 cursor-not-allowed rounded-full bg-white/10 text-[#7E8088]"
+              >
+                Working on it...
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                onClick={onListen}
+                disabled={isSubmitting || !turnId}
+                className={`h-12 min-w-44 gap-2 ${primaryBtn}`}
+              >
+                <MicIcon className="size-4" />
+                Answer
+              </Button>
+            )}
+
+            <Button
+              variant="ghost"
+              onClick={onEnd}
+              disabled={isSubmitting}
+              className="h-12 rounded-full px-5 text-sm text-[#8B8D97] hover:bg-white/5 hover:text-white"
+            >
+              End session
+            </Button>
+          </div>
+        </footer>
       </div>
     </PageChrome>
   );
