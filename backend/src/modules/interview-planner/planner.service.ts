@@ -23,7 +23,7 @@ import {
 
 
 const MODEL_NAME =
-    "gemini-2.5-flash";
+    "gemini-3.8-flash";
 
 
 /*

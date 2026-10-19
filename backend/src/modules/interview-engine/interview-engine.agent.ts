@@ -12,7 +12,7 @@ import { GenerateQuestionInput, InterviewQuestion } from "./interview-engine.typ
 import { InterviewContext } from "../interview-context/interview-context.types.js";
 
 
-const MODEL_NAME = "gemini-2.5-flash";
+const MODEL_NAME = "gemini-3.8-flash";
 
 export const generateInterviewQuestion = async (
     input: GenerateQuestionInput

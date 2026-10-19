@@ -14,7 +14,7 @@ import {
 } from "./claim-extraction.types.js";
 
 
-const MODEL_NAME = "gemini-2.5-flash";
+const MODEL_NAME = "gemini-3.8-flash";
 
 const SYSTEM_PROMPT = `
 You are an expert Resume Claim Extraction Agent.

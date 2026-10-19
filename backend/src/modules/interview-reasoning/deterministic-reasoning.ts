@@ -12,6 +12,33 @@ import {
     ResumeClaimType,
 } from "../interview-brain/claims/resume-claim.enums.js";
 
+// ============================================================================
+// 1. Evasive / Stuck Answer Detection
+// ============================================================================
+
+const EVASIVE_REGEX_PATTERNS = [
+    /don'?t remember/i,
+    /don'?t know/i,
+    /not sure/i,
+    /can'?t recall/i,
+    /don'?t want to/i,
+    /forgot/i,
+    /no idea/i,
+    /can'?t say/i,
+    /skip/i,
+];
+
+export const isAnswerEvasive = (text?: string | null): boolean => {
+    if (!text || text.trim().length === 0) return true;
+    const clean = text.trim();
+    // Short answers (< 80 chars) matching evasion/stuck patterns
+    return clean.length < 80 && EVASIVE_REGEX_PATTERNS.some((rx) => rx.test(clean));
+};
+
+// ============================================================================
+// 2. Senior Developer Area Prioritization (Streamlined & Realistic)
+// ============================================================================
+
 type CandidateArea = {
     area: InvestigationArea;
     objective: string;
@@ -21,344 +48,128 @@ const AREA_PRIORITY: Record<ResumeClaimType, CandidateArea[]> = {
     [ResumeClaimType.PROJECT]: [
         {
             area: "OWNERSHIP",
-            objective: "Establish what the candidate personally owned and implemented in the project.",
-        },
-        {
-            area: "IMPLEMENTATION",
-            objective: "Establish how the claimed project functionality was actually implemented.",
+            objective: "Clarify what the candidate personally built versus what the broader team or existing boilerplate provided.",
         },
         {
             area: "ARCHITECTURE",
-            objective: "Establish the architectural design and structure behind the claimed project.",
-        },
-        {
-            area: "TECHNICAL_DECISION",
-            objective: "Establish the important technical decisions made for the project and why they were chosen.",
-        },
-        {
-            area: "DATABASE",
-            objective: "Establish how data storage and database decisions supported the project.",
-        },
-        {
-            area: "API",
-            objective: "Establish how APIs were designed and used in the project.",
-        },
-        {
-            area: "AUTHENTICATION",
-            objective: "Establish how authentication and access control were implemented when relevant.",
-        },
-        {
-            area: "ERROR_HANDLING",
-            objective: "Establish how failures and error conditions were handled in the project.",
-        },
-        {
-            area: "DEBUGGING",
-            objective: "Establish how the candidate diagnosed and resolved technical problems.",
-        },
-        {
-            area: "DEPLOYMENT",
-            objective: "Establish how the project was deployed and operated.",
-        },
-        {
-            area: "SCALABILITY",
-            objective: "Establish how the project would handle increased load or usage.",
+            objective: "Explore high-level system structure, data flow between services, and key boundaries.",
         },
         {
             area: "TRADE_OFF",
-            objective: "Establish important trade-offs behind the candidate's technical choices.",
+            objective: "Examine why specific technologies were chosen over alternatives and what tradeoffs emerged.",
         },
         {
-            area: "CHALLENGE",
-            objective: "Establish a significant technical challenge encountered during the project.",
+            area: "DEBUGGING",
+            objective: "Explore how unexpected edge cases, bottlenecks, or production bugs were diagnosed and resolved.",
         },
         {
-            area: "PRACTICAL_USAGE",
-            objective: "Establish how the claimed solution was used in practice.",
+            area: "IMPLEMENTATION",
+            objective: "Dig into the concrete mechanics of the most critical workflow or endpoint.",
         },
         {
-            area: "PROBLEM_SOLVING",
-            objective: "Establish how the candidate approached and solved a concrete project problem.",
+            area: "DATABASE",
+            objective: "Understand schema design, indexing choices, or consistency tradeoffs.",
         },
         {
-            area: "GENERAL",
-            objective: "Establish additional concrete evidence supporting the project claim.",
+            area: "API",
+            objective: "Explore contract design, error handling conventions, and integration points.",
         },
     ],
 
     [ResumeClaimType.WORK_EXPERIENCE]: [
         {
             area: "OWNERSHIP",
-            objective: "Establish what the candidate personally owned in the claimed work experience.",
-        },
-        {
-            area: "PRACTICAL_USAGE",
-            objective: "Establish how the claimed skills were applied in real work.",
+            objective: "Identify the candidate's direct contributions and core scope of responsibility in this role.",
         },
         {
             area: "PROBLEM_SOLVING",
-            objective: "Establish how the candidate solved a real problem in this experience.",
-        },
-        {
-            area: "IMPLEMENTATION",
-            objective: "Establish how the candidate implemented the claimed work.",
-        },
-        {
-            area: "TECHNICAL_DECISION",
-            objective: "Establish important technical decisions made during the work.",
-        },
-        {
-            area: "CHALLENGE",
-            objective: "Establish a significant challenge faced during the work.",
-        },
-        {
-            area: "ARCHITECTURE",
-            objective: "Establish the architecture relevant to the claimed work.",
-        },
-        {
-            area: "DEBUGGING",
-            objective: "Establish how technical issues were diagnosed and resolved.",
-        },
-        {
-            area: "ERROR_HANDLING",
-            objective: "Establish how failures and error conditions were handled.",
-        },
-        {
-            area: "DEPLOYMENT",
-            objective: "Establish deployment or operational responsibilities.",
-        },
-        {
-            area: "SCALABILITY",
-            objective: "Establish how the solution handled growth or increased load.",
+            objective: "Discuss a challenging technical problem or system requirement they navigated.",
         },
         {
             area: "TRADE_OFF",
-            objective: "Establish important trade-offs in the candidate's decisions.",
+            objective: "Assess architectural decisions and tradeoffs made during delivery.",
         },
         {
-            area: "GENERAL",
-            objective: "Establish additional concrete evidence supporting the work claim.",
+            area: "DEBUGGING",
+            objective: "Investigate operational incidents or complex bugs resolved in production.",
         },
     ],
 
     [ResumeClaimType.SKILL]: [
         {
-            area: "IMPLEMENTATION",
-            objective: "Establish whether the candidate can practically implement solutions using this skill.",
-        },
-        {
             area: "PRACTICAL_USAGE",
-            objective: "Establish how the candidate has used this skill in practice.",
-        },
-        {
-            area: "PROBLEM_SOLVING",
-            objective: "Establish how the candidate uses this skill to solve technical problems.",
-        },
-        {
-            area: "DEBUGGING",
-            objective: "Establish the candidate's ability to debug using this skill.",
-        },
-        {
-            area: "ARCHITECTURE",
-            objective: "Establish the candidate's understanding of architectural use of this skill.",
-        },
-        {
-            area: "TECHNICAL_DECISION",
-            objective: "Establish when and why the candidate would choose this skill or technology.",
+            objective: "Understand how they apply this skill in production rather than textbook theory.",
         },
         {
             area: "TRADE_OFF",
-            objective: "Establish the candidate's understanding of trade-offs associated with this skill.",
+            objective: "Evaluate their understanding of the boundaries, quirks, and tradeoffs of this tool/technology.",
         },
         {
-            area: "GENERAL",
-            objective: "Establish additional concrete evidence of competence with this skill.",
+            area: "DEBUGGING",
+            objective: "Discuss tricky failure modes or debugging challenges encountered with this skill.",
         },
     ],
 
     [ResumeClaimType.CERTIFICATION]: [
         {
-            area: "GENERAL",
-            objective: "Establish what the candidate understands and can explain from this certification.",
-        },
-        {
             area: "PRACTICAL_USAGE",
-            objective: "Establish how the candidate has applied knowledge represented by this certification.",
-        },
-        {
-            area: "IMPLEMENTATION",
-            objective: "Establish whether the candidate can apply the relevant concepts in practice.",
-        },
-        {
-            area: "PROBLEM_SOLVING",
-            objective: "Establish how the candidate would use the certification knowledge to solve a problem.",
+            objective: "Verify practical application of the concepts learned in real-world scenarios.",
         },
     ],
 
     [ResumeClaimType.ACHIEVEMENT]: [
         {
             area: "OWNERSHIP",
-            objective: "Establish what the candidate personally did to achieve this result.",
-        },
-        {
-            area: "CHALLENGE",
-            objective: "Establish the challenge that had to be overcome.",
-        },
-        {
-            area: "PROBLEM_SOLVING",
-            objective: "Establish how the candidate solved the problem behind the achievement.",
-        },
-        {
-            area: "PRACTICAL_USAGE",
-            objective: "Establish the practical context in which the achievement was produced.",
-        },
-        {
-            area: "GENERAL",
-            objective: "Establish concrete evidence supporting the achievement claim.",
+            objective: "Establish the candidate's direct personal involvement in driving this outcome.",
         },
     ],
 
     [ResumeClaimType.OPEN_SOURCE]: [
         {
             area: "OWNERSHIP",
-            objective: "Establish what the candidate personally contributed to the open-source work.",
-        },
-        {
-            area: "IMPLEMENTATION",
-            objective: "Establish how the candidate implemented the claimed contribution.",
-        },
-        {
-            area: "DEBUGGING",
-            objective: "Establish how the candidate diagnosed and resolved issues in the contribution.",
-        },
-        {
-            area: "PROBLEM_SOLVING",
-            objective: "Establish how the candidate solved the problem addressed by the contribution.",
-        },
-        {
-            area: "TECHNICAL_DECISION",
-            objective: "Establish important technical decisions made in the contribution.",
-        },
-        {
-            area: "CHALLENGE",
-            objective: "Establish the main technical challenge encountered.",
-        },
-        {
-            area: "GENERAL",
-            objective: "Establish additional concrete evidence supporting the contribution claim.",
+            objective: "Establish the specific PRs, modules, or issues personally written and reviewed.",
         },
     ],
 
     [ResumeClaimType.RESEARCH]: [
         {
-            area: "OWNERSHIP",
-            objective: "Establish the candidate's specific contribution to the research.",
-        },
-        {
             area: "PROBLEM_SOLVING",
-            objective: "Establish how the candidate approached the research problem.",
-        },
-        {
-            area: "TECHNICAL_DECISION",
-            objective: "Establish important methodological or technical decisions.",
-        },
-        {
-            area: "IMPLEMENTATION",
-            objective: "Establish how the research approach was implemented.",
-        },
-        {
-            area: "CHALLENGE",
-            objective: "Establish the main research or technical challenge.",
-        },
-        {
-            area: "GENERAL",
-            objective: "Establish additional concrete evidence supporting the research claim.",
+            objective: "Explore the core technical problem tackled and the candidate's methodology.",
         },
     ],
 
     [ResumeClaimType.PUBLICATION]: [
         {
             area: "OWNERSHIP",
-            objective: "Establish the candidate's specific contribution to the publication.",
-        },
-        {
-            area: "GENERAL",
-            objective: "Establish the core work and evidence behind the publication claim.",
-        },
-        {
-            area: "PROBLEM_SOLVING",
-            objective: "Establish the problem addressed by the work.",
-        },
-        {
-            area: "TECHNICAL_DECISION",
-            objective: "Establish important technical or methodological decisions.",
-        },
-        {
-            area: "IMPLEMENTATION",
-            objective: "Establish how the proposed work was implemented when applicable.",
+            objective: "Establish the specific technical contribution made to the publication.",
         },
     ],
 
     [ResumeClaimType.LEADERSHIP]: [
         {
-            area: "OWNERSHIP",
-            objective: "Establish what the candidate personally owned as a leader.",
-        },
-        {
             area: "PROBLEM_SOLVING",
-            objective: "Establish how the candidate handled a difficult leadership problem.",
-        },
-        {
-            area: "CHALLENGE",
-            objective: "Establish a significant challenge encountered while leading.",
-        },
-        {
-            area: "PRACTICAL_USAGE",
-            objective: "Establish how the candidate's leadership responsibilities worked in practice.",
-        },
-        {
-            area: "GENERAL",
-            objective: "Establish additional concrete evidence supporting the leadership claim.",
+            objective: "Explore how technical disagreements or delivery blockers were navigated with peers.",
         },
     ],
 
     [ResumeClaimType.EDUCATION]: [
         {
-            area: "GENERAL",
-            objective: "Establish the candidate's understanding of the claimed educational knowledge.",
-        },
-        {
             area: "PRACTICAL_USAGE",
-            objective: "Establish how the candidate applied knowledge gained through education.",
-        },
-        {
-            area: "PROBLEM_SOLVING",
-            objective: "Establish how the candidate used this knowledge to solve a problem.",
-        },
-        {
-            area: "IMPLEMENTATION",
-            objective: "Establish whether the candidate can apply the claimed knowledge in practice.",
+            objective: "Discuss foundational engineering concepts applied to concrete projects.",
         },
     ],
 
     [ResumeClaimType.OTHER]: [
         {
-            area: "GENERAL",
-            objective: "Establish concrete evidence supporting the resume claim.",
-        },
-        {
-            area: "OWNERSHIP",
-            objective: "Establish what the candidate personally owned or contributed.",
-        },
-        {
             area: "PRACTICAL_USAGE",
-            objective: "Establish how the claimed experience or skill was applied in practice.",
-        },
-        {
-            area: "PROBLEM_SOLVING",
-            objective: "Establish how the candidate handled a relevant problem.",
+            objective: "Explore how this background item connects to real engineering execution.",
         },
     ],
 };
+
+// ============================================================================
+// 3. Helper Functions
+// ============================================================================
 
 const getAttemptedAreas = (
     interviewContext: GenerateInterviewReasoningInput["interviewContext"],
@@ -392,8 +203,7 @@ const getPreferredArea = (
     return (
         candidates.find(
             (candidate) => !attemptedAreas.has(candidate.area),
-        ) ??
-        candidates[0]!
+        ) ?? candidates[0]!
     );
 };
 
@@ -405,25 +215,18 @@ const getNextDifferentArea = (
     const candidates =
         AREA_PRIORITY[claimType] ?? AREA_PRIORITY[ResumeClaimType.OTHER];
 
-    const differentUnattempted =
-        candidates.find(
-            (candidate) =>
-                !attemptedAreas.has(candidate.area) &&
-                candidate.area !== latestArea,
-        );
+    const differentUnattempted = candidates.find(
+        (candidate) =>
+            !attemptedAreas.has(candidate.area) && candidate.area !== latestArea,
+    );
 
-    if (differentUnattempted) {
-        return differentUnattempted;
-    }
+    if (differentUnattempted) return differentUnattempted;
 
-    const different =
-        candidates.find(
-            (candidate) => candidate.area !== latestArea,
-        );
+    const different = candidates.find(
+        (candidate) => candidate.area !== latestArea,
+    );
 
-    if (different) {
-        return different;
-    }
+    if (different) return different;
 
     return getPreferredArea(claimType, attemptedAreas);
 };
@@ -434,40 +237,18 @@ const chooseQuestionType = (
 ): InterviewReasoning["questionType"] => {
     switch (decision) {
         case InterviewDecisionType.FOLLOW_UP:
-            return "FOLLOW_UP";
-
         case InterviewDecisionType.RECOVER_CONVERSATION:
-            return "FOLLOW_UP";
-
-        case InterviewDecisionType.PROBE_CLAIM:
-            return "PROBE_CLAIM";
-
-        case InterviewDecisionType.CHANGE_ANGLE:
-            return "PROBE_CLAIM";
-
         case InterviewDecisionType.CLARIFY_CONTRADICTION:
             return "FOLLOW_UP";
 
+        case InterviewDecisionType.PROBE_CLAIM:
+        case InterviewDecisionType.CHANGE_ANGLE:
+            return "PROBE_CLAIM";
+
         case InterviewDecisionType.MOVE_TO_NEXT_CLAIM:
-            if (claimType === ResumeClaimType.PROJECT) {
-                return "PROJECT";
-            }
-
-            if (claimType === ResumeClaimType.SKILL) {
-                return "IMPLEMENTATION";
-            }
-
-            return "NEW_TOPIC";
-
         case InterviewDecisionType.MOVE_TO_NEXT_STAGE:
-            if (claimType === ResumeClaimType.PROJECT) {
-                return "PROJECT";
-            }
-
-            if (claimType === ResumeClaimType.SKILL) {
-                return "IMPLEMENTATION";
-            }
-
+            if (claimType === ResumeClaimType.PROJECT) return "PROJECT";
+            if (claimType === ResumeClaimType.SKILL) return "IMPLEMENTATION";
             return "NEW_TOPIC";
 
         default:
@@ -479,17 +260,23 @@ const buildObjective = (
     decision: InterviewDecisionType,
     selectedArea: CandidateArea,
     latestAttempt: ReturnType<typeof getLatestAttempt>,
+    isStumped: boolean,
 ): string => {
     switch (decision) {
         case InterviewDecisionType.FOLLOW_UP:
-            return latestAttempt?.objective ??
-                selectedArea.objective;
+            return latestAttempt?.objective ?? selectedArea.objective;
 
         case InterviewDecisionType.RECOVER_CONVERSATION:
-            return `Clarify the current claim using a simpler and more concrete approach. ${selectedArea.objective}`;
+            if (isStumped) {
+                return "The candidate drew a blank or forgot specifics. Zoom out to a high-level architectural view or hypothetical design question so they can answer comfortably without recalling legacy code details.";
+            }
+            return `Lower cognitive load with a concrete, accessible angle. ${selectedArea.objective}`;
 
         case InterviewDecisionType.CLARIFY_CONTRADICTION:
-            return "Resolve the conflicting evidence in the candidate's previous response and the resume-backed claim.";
+            return "Politely and constructively clarify the conflicting technical detail without putting the candidate on the defensive.";
+
+        case InterviewDecisionType.MOVE_TO_NEXT_CLAIM:
+            return `Transition smoothly to the new claim. Establish foundational context on ${selectedArea.area}.`;
 
         default:
             return selectedArea.objective;
@@ -499,33 +286,41 @@ const buildObjective = (
 const getReasoningText = (
     decision: InterviewDecisionType,
     selectedArea: CandidateArea,
+    isStumped: boolean,
 ): string => {
     switch (decision) {
         case InterviewDecisionType.FOLLOW_UP:
-            return "Continue the current conversational thread and investigate the same claim.";
+            return "Follow up on the active technical thread naturally as a senior peer.";
 
         case InterviewDecisionType.RECOVER_CONVERSATION:
-            return "Simplify the investigation and use a concrete approach to recover the conversation.";
+            if (isStumped) {
+                return "Candidate couldn't recall details. Bridge warmly and ask a high-level question to keep conversational momentum.";
+            }
+            return "Provide a friendly entry point to keep the conversation flowing smoothly.";
 
         case InterviewDecisionType.PROBE_CLAIM:
-            return "Deepen investigation of the current claim using the highest-value available evidence area.";
+            return "Explore technical reasoning, engineering tradeoffs, or real-world failure modes.";
 
         case InterviewDecisionType.CHANGE_ANGLE:
-            return "Investigate the current claim from a different evidence area.";
+            return `Pivot investigation towards ${selectedArea.area} to test a different practical dimension.`;
 
         case InterviewDecisionType.CLARIFY_CONTRADICTION:
-            return "Focus on resolving the conflicting evidence before continuing the investigation.";
+            return "Clarify apparent inconsistency with curious, neutral phrasing.";
 
         case InterviewDecisionType.MOVE_TO_NEXT_CLAIM:
-            return "Begin investigation of the newly selected resume claim.";
+            return "Acknowledge previous topic and start a fresh inquiry into the next claim.";
 
         case InterviewDecisionType.MOVE_TO_NEXT_STAGE:
-            return "Begin investigation of the newly selected stage and claim.";
+            return "Advance to the next interview stage seamlessly.";
 
         default:
-            return `Investigate the current claim through ${selectedArea.area}.`;
+            return `Explore ${selectedArea.area} in a collaborative senior peer manner.`;
     }
 };
+
+// ============================================================================
+// 4. Main Export
+// ============================================================================
 
 export const buildDeterministicReasoning = (
     input: GenerateInterviewReasoningInput,
@@ -538,36 +333,19 @@ export const buildDeterministicReasoning = (
         evaluation,
     } = input;
 
-    const attemptedAreas =
-        getAttemptedAreas(interviewContext, claim.id);
+    const attemptedAreas = getAttemptedAreas(interviewContext, claim.id);
+    const latestAttempt = getLatestAttempt(interviewContext, claim.id);
+    const latestArea = latestAttempt?.investigationArea ?? null;
 
-    const latestAttempt =
-        getLatestAttempt(interviewContext, claim.id);
-
-    const latestArea =
-        latestAttempt?.investigationArea ?? null;
+    // Check if the candidate's last answer was a blank / evasive response
+    const lastAnswer = interviewContext.conversationHistory?.at(-1)?.answer ?? "";
+    const candidateIsStumped = isAnswerEvasive(lastAnswer);
 
     let selectedArea: CandidateArea;
 
     switch (decision.type) {
         case InterviewDecisionType.FOLLOW_UP:
-            selectedArea = latestAttempt
-                ? {
-                    area: latestAttempt.investigationArea,
-                    objective: latestAttempt.objective,
-                }
-                : getPreferredArea(claim.type, attemptedAreas);
-            break;
-
         case InterviewDecisionType.RECOVER_CONVERSATION:
-            selectedArea = latestAttempt
-                ? {
-                    area: latestAttempt.investigationArea,
-                    objective: latestAttempt.objective,
-                }
-                : getPreferredArea(claim.type, attemptedAreas);
-            break;
-
         case InterviewDecisionType.CLARIFY_CONTRADICTION:
             selectedArea = latestAttempt
                 ? {
@@ -586,78 +364,44 @@ export const buildDeterministicReasoning = (
             break;
 
         case InterviewDecisionType.PROBE_CLAIM:
-            selectedArea = getPreferredArea(
-                claim.type,
-                attemptedAreas,
-            );
-            break;
-
         case InterviewDecisionType.MOVE_TO_NEXT_CLAIM:
         case InterviewDecisionType.MOVE_TO_NEXT_STAGE:
         default:
-            selectedArea = getPreferredArea(
-                claim.type,
-                attemptedAreas,
-            );
+            selectedArea = getPreferredArea(claim.type, attemptedAreas);
             break;
     }
 
-    const questionType =
-        chooseQuestionType(
-            decision.type,
-            claim.type,
-        );
+    const questionType = chooseQuestionType(decision.type, claim.type);
+    const objective = buildObjective(
+        decision.type,
+        selectedArea,
+        latestAttempt,
+        candidateIsStumped,
+    );
 
-    const objective =
-        buildObjective(
-            decision.type,
-            selectedArea,
-            latestAttempt,
-        );
+    const weakAnswer = evaluation.answerBehavior === "WEAK" || candidateIsStumped;
+    const recoverDecision = decision.type === InterviewDecisionType.RECOVER_CONVERSATION;
 
-    const weakAnswer =
-        evaluation.answerBehavior === "WEAK";
-
-    const recoverDecision =
-        decision.type ===
-        InterviewDecisionType.RECOVER_CONVERSATION;
-
+    // Only increase difficulty when candidate answers confidently with depth
     const increaseDifficulty =
         !recoverDecision &&
         !weakAnswer &&
-        (
-            assessment.confidence >= 0.70 ||
-            evaluation.score >= 8
-        );
+        (assessment.confidence >= 0.70 || evaluation.score >= 8);
 
     const askImplementationQuestion =
         questionType === "IMPLEMENTATION" ||
         selectedArea.area === "IMPLEMENTATION";
 
     return {
-        reasoning: getReasoningText(
-            decision.type,
-            selectedArea,
-        ),
-
+        reasoning: getReasoningText(decision.type, selectedArea, candidateIsStumped),
         objective,
-
-        investigationArea:
-            selectedArea.area,
-
+        investigationArea: selectedArea.area,
         questionType,
-
         stayOnCurrentTopic:
-            decision.type !==
-            InterviewDecisionType.MOVE_TO_NEXT_CLAIM &&
-            decision.type !==
-            InterviewDecisionType.MOVE_TO_NEXT_STAGE,
-
+            decision.type !== InterviewDecisionType.MOVE_TO_NEXT_CLAIM &&
+            decision.type !== InterviewDecisionType.MOVE_TO_NEXT_STAGE,
         increaseDifficulty,
-
-        referenceResume:
-            true,
-
+        referenceResume: true,
         askImplementationQuestion,
     };
 };
