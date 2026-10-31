@@ -5,7 +5,7 @@ import { INTERVIEW_REASONING_PROMPT } from "./reasoning.prompt.js";
 import { interviewReasoningSchema } from "./reasoning.schema.js";
 import { GenerateInterviewReasoningInput, InterviewReasoning } from "./reasoning.types.js";
 
-const MODEL_NAME = "gemini-3.8-flash";
+const MODEL_NAME = "gemini-3.5-flash-lite";
 
 const MAX_ATTEMPTS = 3;
 

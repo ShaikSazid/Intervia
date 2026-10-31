@@ -12,7 +12,7 @@ import {
     AnswerEvaluation,
 } from "./answer-evaluation.types.js";
 
-const MODEL_NAME = "gemini-3.8-flash";
+const MODEL_NAME = "gemini-3.5-flash-lite";
 
 export const generateAnswerEvaluation = async (
     input: EvaluateAnswerInput
